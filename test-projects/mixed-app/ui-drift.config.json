@@ -1,0 +1,4 @@
+{
+  "designSystemImports": ["@mui/material", "@mui/icons-material"],
+  "ignorePaths": ["node_modules", "dist", "build", "coverage"]
+}

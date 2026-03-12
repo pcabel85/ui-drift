@@ -1,0 +1,47 @@
+{
+  "designSystemImports": [
+    "@mui/material",
+    "@mui/icons-material",
+    "@company/ui"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    ".next",
+    "out",
+    "storybook-static"
+  ],
+  "familyKeywords": [
+    "button",
+    "card",
+    "modal",
+    "input",
+    "select",
+    "badge",
+    "tag",
+    "alert",
+    "dialog",
+    "dropdown",
+    "table",
+    "tabs"
+  ],
+  "penalties": {
+    "duplicateHigh": 10,
+    "duplicateMedium": 5,
+    "duplicateLow": 2,
+    "inlineStyle": 1.5,
+    "hardcodedColor": 2,
+    "hardcodedSpacing": 1
+  },
+  "bonuses": {
+    "approvedImport": 0.5
+  },
+  "scoreWeights": {
+    "approvedAdoption": 40,
+    "duplicateComponents": 20,
+    "tokenCompliance": 20,
+    "inlineStyles": 20
+  }
+}

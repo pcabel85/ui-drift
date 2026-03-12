@@ -1,0 +1,42 @@
+{
+  "name": "ui-drift",
+  "version": "0.1.0",
+  "description": "Design system health auditor for React/TypeScript codebases",
+  "bin": {
+    "ui-drift": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "design-system",
+    "react",
+    "audit",
+    "cli",
+    "typescript",
+    "component-health"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@babel/parser": "^7.23.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "fast-glob": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
