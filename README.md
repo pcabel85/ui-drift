@@ -1,35 +1,43 @@
 # ui-drift
+Detect design system drift before it becomes design system decay.
 
 > Design system health auditor for React / TypeScript codebases.
 
 ui-drift answers one question for your frontend team:
 
-**How healthy is our design system adoption in the actual codebase?**
+How healthy is our design system adoption in the actual codebase?
 
-It scans your React project with AST-based analysis (no regex) and produces a scored, actionable report in the terminal, as JSON, or as a shareable HTML file.
+It scans your React project with AST-based analysis and produces a scored, actionable report in the terminal, as JSON, or as a shareable HTML file.
 
 ---
 
 ## Quick start
 
 ```bash
-# Run against any React/TS project
-npx ui-drift ./my-app
+git clone https://github.com/pcabel85/ui-drift.git
+cd ui-drift
+npm install
+npm run build
 
-# With a config file
-npx ui-drift ./my-app --config ui-drift.config.json
+# FUTURE: run directly via npx once published
+# npx ui-drift ./my-app
+
+# Run against one of the included demo repos:
+node dist/cli.js test-projects/healthy-app
+node dist/cli.js test-projects/mixed-app
+node dist/cli.js test-projects/drifted-app
 
 # Export a shareable HTML report
-npx ui-drift ./my-app --html
+node dist/cli.js ./my-app --html
 
 # Export machine-readable JSON
-npx ui-drift ./my-app --json
+node dist/cli.js ./my-app --json
+
+# With a custom config file
+node dist/cli.js test-projects/mixed-app --config ui-drift.config.json
 
 # Both at once (custom paths)
-npx ui-drift ./my-app --json audit.json --html audit.html
-
-# Score only — exits 0 if score >= 70 (useful for CI)
-npx ui-drift ./my-app --score-only
+node dist/cli.js ./my-app --json audit.json --html audit.html
 ```
 
 ---
@@ -84,7 +92,7 @@ Detects direct bypasses of the design system:
 | Hardcoded colors | Hex values, `rgb()`/`rgba()` in style objects |
 | Hardcoded spacing | Raw pixel values on margin, padding, gap, width, height, etc. |
 
-### 4. Wrapper sprawl detection
+### 4. Wrapper component sprawl detection
 
 Flags when multiple thin wrappers exist around the same approved base component — a pattern that signals design drift even when the underlying DS is technically in use.
 
@@ -188,6 +196,20 @@ The summary labels and top-issue line are tone-matched to the overall health sco
 
   2. 1 high-severity duplicate family: button. Consolidate to a single
      implementation using approved DS components.
+```
+
+---
+
+## HTML report example
+
+ui-drift can also export a shareable HTML report for architecture reviews or CI artifacts.
+
+![ui-drift HTML report](docs/html-report-example.png)
+
+Generate it with:
+
+```bash
+node dist/cli.js ./my-app --html
 ```
 
 ---
@@ -386,6 +408,12 @@ node dist/cli.js ../test-projects/drifted-app --html
 - **Confidence levels on every duplicate finding** — heuristic uncertainty is surfaced, not hidden
 - **Score math is always visible** — engineers can see exactly why a score is what it is
 - **Wrapper vs standalone distinction** — thin wrappers around approved components are classified and penalised separately from independent reimplementations
+
+---
+
+## Status
+
+Prototype (`v0.1`) — currently intended for private feedback and early testing.
 
 ---
 
