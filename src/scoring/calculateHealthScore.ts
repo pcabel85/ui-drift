@@ -6,7 +6,8 @@ export function calculateHealthScore(
   importUsage: ImportUsageResult,
   duplicateFindings: DuplicateFinding[],
   inlineStyles: InlineStyleResult,
-  config: DSAuditConfig
+  config: DSAuditConfig,
+  scannedFiles: number
 ): { score: number; breakdown: ScoreBreakdown } {
   const weights = config.scoreWeights;
 
@@ -22,16 +23,25 @@ export function calculateHealthScore(
   }
   const duplicateScore = Math.max(0, 100 - duplicatePenaltyRaw);
 
-  // ── 3. Token compliance (20%) ──────────────────────────────────────────────────
-  const tokenPenaltyRaw =
-    inlineStyles.totalHardcodedColors * config.penalties.hardcodedColor +
-    inlineStyles.totalHardcodedSpacing * config.penalties.hardcodedSpacing;
+  // ── 3 & 4. Token compliance and inline styles — normalised by repo size ───────
+  // Raw counts on large repos produce unfairly huge penalties. We penalise the
+  // *rate* (violations per 100 scanned files) so a 1,500-file app and a 50-file
+  // app are judged on the same yardstick.
+  // Normalise against a minimum baseline of 100 files so small apps are not
+  // over-penalised. Apps with fewer than 100 files are scored on raw counts
+  // (same as the pre-normalisation baseline); larger repos get the benefit.
+  const per100 = Math.max(100, scannedFiles) / 100;
+
+  const tokenPenaltyRaw = (
+    inlineStyles.totalHardcodedColors  * config.penalties.hardcodedColor +
+    inlineStyles.totalHardcodedSpacing * config.penalties.hardcodedSpacing
+  ) / per100;
   const tokenScore = Math.max(0, 100 - tokenPenaltyRaw);
 
-  // ── 4. Inline styles (20%) ─────────────────────────────────────────────────────
-  const inlineStylePenaltyRaw =
+  const inlineStylePenaltyRaw = (
     inlineStyles.totalInlineStyles * config.penalties.inlineStyle +
-    inlineStyles.totalSxOverrides * 0.5;
+    inlineStyles.totalSxOverrides  * 0.5
+  ) / per100;
   const inlineStyleScore = Math.max(0, 100 - inlineStylePenaltyRaw);
 
   // ── Weighted contributions ─────────────────────────────────────────────────────
@@ -47,16 +57,16 @@ export function calculateHealthScore(
   const breakdown: ScoreBreakdown = {
     adoptionScore,
     duplicateScore,
-    tokenScore,
-    inlineStyleScore,
-    adoptionContribution:  Math.round(adoptionContribution),
-    duplicateContribution: Math.round(duplicateContribution),
-    tokenContribution:     Math.round(tokenContribution),
+    tokenScore:      Math.round(tokenScore),
+    inlineStyleScore: Math.round(inlineStyleScore),
+    adoptionContribution:    Math.round(adoptionContribution),
+    duplicateContribution:   Math.round(duplicateContribution),
+    tokenContribution:       Math.round(tokenContribution),
     inlineStyleContribution: Math.round(inlineContribution),
-    adoptionPenalty:  Math.round(weights.approvedAdoption   - adoptionContribution),
-    duplicatePenalty: Math.round(weights.duplicateComponents - duplicateContribution),
-    tokenPenalty:     Math.round(weights.tokenCompliance     - tokenContribution),
-    inlineStylePenalty: Math.round(weights.inlineStyles      - inlineContribution),
+    adoptionPenalty:    Math.round(weights.approvedAdoption    - adoptionContribution),
+    duplicatePenalty:   Math.round(weights.duplicateComponents - duplicateContribution),
+    tokenPenalty:       Math.round(weights.tokenCompliance     - tokenContribution),
+    inlineStylePenalty: Math.round(weights.inlineStyles        - inlineContribution),
   };
 
   return { score: finalScore, breakdown };
@@ -66,25 +76,31 @@ export function buildSummary(
   importUsage: ImportUsageResult,
   duplicateFindings: DuplicateFinding[],
   inlineStyles: InlineStyleResult,
-  healthScore: number
+  healthScore: number,
+  scannedFiles: number
 ): AuditSummary {
   const adoptionPercent = Math.round(importUsage.adoptionRatio * 100);
 
-  // Only count raw style={{}} for the label — sx is an intentional MUI pattern.
-  const hardStyleCount = inlineStyles.totalInlineStyles;
+  // Normalise violation counts by repo size before applying label thresholds.
+  // Normalise against a minimum baseline of 100 files so small apps are not
+  // over-penalised. Apps with fewer than 100 files are scored on raw counts
+  // (same as the pre-normalisation baseline); larger repos get the benefit.
+  const per100 = Math.max(100, scannedFiles) / 100;
+
+  const inlineRate = inlineStyles.totalInlineStyles / per100;
   const inlineStyleLevel =
-    hardStyleCount === 0   ? 'None'
-    : hardStyleCount <= 3  ? 'Low'
-    : hardStyleCount <= 15 ? 'Moderate'
-    : hardStyleCount <= 40 ? 'High'
+    inlineRate === 0    ? 'None'
+    : inlineRate <= 2   ? 'Low'
+    : inlineRate <= 8   ? 'Moderate'
+    : inlineRate <= 25  ? 'High'
     : 'Critical';
 
-  const totalToken = inlineStyles.totalHardcodedColors + inlineStyles.totalHardcodedSpacing;
+  const tokenRate = (inlineStyles.totalHardcodedColors + inlineStyles.totalHardcodedSpacing) / per100;
   const tokenViolationLevel =
-    totalToken === 0    ? 'None'
-    : totalToken <= 10  ? 'Low'
-    : totalToken <= 40  ? 'Moderate'
-    : totalToken <= 100 ? 'High'
+    tokenRate === 0   ? 'None'
+    : tokenRate <= 5  ? 'Low'
+    : tokenRate <= 20 ? 'Moderate'
+    : tokenRate <= 50 ? 'High'
     : 'Critical';
 
   // Top issue tone is anchored to the overall health score so the summary

@@ -69,9 +69,9 @@ async function run() {
   const wrappers       = analyzeWrappers(componentProfiles, config);
 
   const { score: healthScore, breakdown: scoreBreakdown } =
-    calculateHealthScore(importUsage, duplicateFindings, inlineStyles, config);
+    calculateHealthScore(importUsage, duplicateFindings, inlineStyles, config, allFiles.length);
 
-  const summary = buildSummary(importUsage, duplicateFindings, inlineStyles, healthScore);
+  const summary = buildSummary(importUsage, duplicateFindings, inlineStyles, healthScore, allFiles.length);
 
   const recommendations = generateRecommendations(
     importUsage, duplicateFindings, inlineStyles, wrappers, healthScore
