@@ -3,9 +3,9 @@ Detect design system drift before it becomes design system decay.
 
 > Design system health auditor for React / TypeScript codebases.
 
-ui-drift scans your React project with AST-based analysis and answers one question for your frontend team: **How healthy is our design system adoption in the actual codebase?**
+ui-drift is designed for frontend platform teams, design-system maintainers, and engineering leads who want visibility into UI architecture drift across large React codebases.
 
-It produces a scored, actionable report in the terminal, as JSON, or as a shareable HTML file.
+It scans your project with AST-based analysis and answers one question: **How healthy is our design system adoption in the actual codebase?** Results come back as a scored, actionable report in the terminal, as JSON, or as a shareable HTML file.
 
 ---
 
