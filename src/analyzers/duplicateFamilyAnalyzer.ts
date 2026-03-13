@@ -64,10 +64,21 @@ export function analyzeDuplicateFamilies(
     if (!severity) continue;
 
     const confidence = calculateConfidence(primitiveMembers);
+
+    // Down-rank wrapper-heavy families: wrappers around approved DS components are
+    // much less concerning than independent reimplementations.
+    const wrapperCount = primitiveMembers.filter((m) => m.kind === 'wrapper').length;
+    const standaloneCount = primitiveMembers.filter((m) => m.kind === 'standalone').length;
+    let effectiveSeverity: 'high' | 'medium' | 'low' = severity;
+    if (wrapperCount > standaloneCount) {
+      if (effectiveSeverity === 'high') effectiveSeverity = 'medium';
+      if (confidence === 'low') effectiveSeverity = 'low';
+    }
+
     const featureComponentsExcluded = featureMembers.length;
     const exampleFeature = featureMembers[0]?.profile.componentName;
-    const reason = buildReason(primitiveMembers, severity, featureComponentsExcluded, exampleFeature);
-    const whyItMatters = buildWhyItMatters(family, primitiveMembers, severity);
+    const reason = buildReason(primitiveMembers, effectiveSeverity, featureComponentsExcluded, exampleFeature);
+    const whyItMatters = buildWhyItMatters(family, primitiveMembers, effectiveSeverity);
 
     const components: DuplicateComponent[] = primitiveMembers.map((m) => ({
       filePath: m.profile.filePath,
@@ -75,7 +86,7 @@ export function analyzeDuplicateFamilies(
       wraps: m.wraps,
     }));
 
-    findings.push({ family, severity, components, reason, confidence, whyItMatters, featureComponentsExcluded });
+    findings.push({ family, severity: effectiveSeverity, components, reason, confidence, whyItMatters, featureComponentsExcluded });
   }
 
   const severityOrder = { high: 0, medium: 1, low: 2 };
