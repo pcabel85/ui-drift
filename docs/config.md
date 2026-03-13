@@ -2,7 +2,7 @@
 
 Place `ui-drift.config.json` in the root of the project you are auditing, or pass `--config <path>` to specify a file anywhere.
 
-All fields are optional — any omitted field falls back to the built-in default.
+All fields are optional. Any omitted field falls back to the built-in default.
 
 ---
 
@@ -69,7 +69,7 @@ For monorepos that maintain their own internal UI package (e.g. `packages/ui`), 
 
 `internalDSPaths` accepts an array of path segments. Any import whose source path contains one of these segments is treated as an approved DS import. Components whose `filePath` lives inside one of these directories are treated as canonical DS primitives and are never flagged as duplicates.
 
-**Example — cal.com monorepo:**
+**Example (cal.com monorepo):**
 
 ```json
 {
@@ -80,7 +80,7 @@ For monorepos that maintain their own internal UI package (e.g. `packages/ui`), 
 
 With this config:
 - Imports from `../../packages/ui/Button` are counted as approved DS usage
-- Files inside `packages/ui/` are the canonical source of truth — never flagged as duplicates
+- Files inside `packages/ui/` are the canonical source of truth and are never flagged as duplicates
 - Domain-specific wrappers like `AcceptBookingButton` are excluded from primitive duplicate counts and reported transparently
 
 ### `ignorePaths`
@@ -108,7 +108,7 @@ Controls how much each type of violation reduces the raw sub-scores before they 
 | `hardcodedColor` | 2 | Penalty per hardcoded color (per 100 files) |
 | `hardcodedSpacing` | 1 | Penalty per hardcoded spacing value (per 100 files) |
 
-Duplicate penalties are further modulated by standalone weighting and diminishing returns — see [scoring-model.md](./scoring-model.md).
+Duplicate penalties are further modulated by standalone weighting and diminishing returns. See [scoring-model.md](./scoring-model.md) for details.
 
 ### `bonuses`
 

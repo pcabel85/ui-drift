@@ -49,9 +49,9 @@ node dist/cli.js ./my-app --json-only
 }
 ```
 
-`*Score` — sub-score out of 100 before weighting
-`*Contribution` — points contributed to the final score (score × weight / 100)
-`*Penalty` — points lost in that dimension (weight − contribution)
+`*Score`: sub-score out of 100 before weighting
+`*Contribution`: points contributed to the final score (score × weight / 100)
+`*Penalty`: points lost in that dimension (weight − contribution)
 
 ---
 
@@ -110,12 +110,12 @@ Array of duplicate family findings, sorted high → medium → low severity:
 `"high"` | `"medium"` | `"low"`
 
 ### `confidence`
-`"high"` | `"medium"` | `"low"` — reflects how certain the heuristic is that these are true duplicates (not coincidentally named components)
+`"high"` | `"medium"` | `"low"`. Reflects how certain the heuristic is that these are true duplicates rather than coincidentally named components.
 
 ### `components[].kind`
 | Value | Meaning |
 |---|---|
-| `standalone` | No approved DS import — independently re-implemented |
+| `standalone` | No approved DS import; independently re-implemented |
 | `wrapper` | Thin wrapper around an approved DS component from the same family |
 | `feature-composed` | Uses DS primitives but has domain-specific logic; excluded from severity |
 

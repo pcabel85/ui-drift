@@ -35,14 +35,14 @@ The adoption ratio is `approvedImports / (approvedImports + localUiImports)`. Fi
 
 Uses a **two-layer penalty model** to prevent a long tail of medium/low findings from zeroing out the score:
 
-**Layer 1 — Standalone weighting**
+**Layer 1: Standalone weighting**
 
 Each finding's base penalty is multiplied by the fraction of its primitive components that are true standalones (no DS imports). Wrapper-heavy and feature-composed families contribute less.
 
 - `effectivePenalty = basePenalty × max(0.15, standaloneRatio)`
 - The `0.15` floor keeps wrapper sprawl on the radar without amplifying it
 
-**Layer 2 — Diminishing returns**
+**Layer 2: Diminishing returns**
 
 Findings are sorted worst-first. Each successive finding is discounted:
 

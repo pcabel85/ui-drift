@@ -69,13 +69,13 @@ Counts approved vs local UI imports across all profiles. A file inside `internal
 Groups component profiles by normalised UI noun. Filters to families with 2+ primitive-like members (using `isPrimitiveLike()`). Computes severity and confidence from standalone count and shared prop overlap across standalones.
 
 Component kind classification:
-- **wrapper** — renders a same-family approved DS component directly
-- **feature-composed** — uses DS primitives but has domain logic (zero severity weight)
-- **standalone** — no approved DS imports (the main concern)
+- **wrapper**: renders a same-family approved DS component directly
+- **feature-composed**: uses DS primitives but has domain logic (zero severity weight)
+- **standalone**: no approved DS imports (the main concern)
 
 ### `wrapperAnalyzer`
 
-Separate from duplicate detection. Flags when multiple thin wrappers exist around the same base component across the codebase — a different pattern from duplication, handled with its own severity model.
+Separate from duplicate detection. Flags when multiple thin wrappers exist around the same base component across the codebase. It uses its own severity model because wrapper sprawl is a different problem from full reimplementation.
 
 ### `inlineStyleAnalyzer`
 
@@ -98,7 +98,7 @@ Walks JSX attributes looking for `style={{}}` objects, `sx={{}}` props, and stri
 
 ## Adding a new analyzer
 
-1. Create `src/analyzers/myAnalyzer.ts` — accepts `ComponentProfile[]` and config, returns a typed result
-2. Import and call it in `cli.ts` alongside the other analyzers
-3. Pass its output into `calculateHealthScore` if it should affect scoring, or into `printTerminalReport` / `writeJsonReport` for display only
+1. Create `src/analyzers/myAnalyzer.ts`. It should accept `ComponentProfile[]` and config, and return a typed result.
+2. Import and call it in `cli.ts` alongside the other analyzers.
+3. Pass its output into `calculateHealthScore` if it should affect scoring, or into `printTerminalReport` / `writeJsonReport` for display only.
 4. Add any new fields to `types.ts` and `AuditResult`

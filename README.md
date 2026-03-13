@@ -39,10 +39,10 @@ node dist/cli.js ./my-app --score-only
 
 ## What it detects
 
-- **DS adoption** — ratio of approved design system imports to local hand-rolled UI components
-- **Duplicate component families** — multiple implementations of the same UI noun (button, card, modal…), classified by severity and confidence
-- **Inline styles and token violations** — `style={{}}` props, hardcoded colors, hardcoded spacing values
-- **Wrapper component sprawl** — thin wrappers multiplying around the same approved base component
+- **DS adoption**: how many UI imports come from approved design system libraries versus local hand-rolled components
+- **Duplicate component families**: multiple implementations of the same UI noun (button, card, modal…), classified by severity and confidence
+- **Inline styles and token violations**: `style={{}}` props, hardcoded colors, hardcoded spacing values
+- **Wrapper component sprawl**: thin wrappers multiplying around the same approved base component
 
 All findings roll up into a **health score from 0–100** across four weighted dimensions.
 
@@ -166,7 +166,7 @@ node dist/cli.js test-projects/drifted-app
 
 ## Roadmap
 
-- [ ] CI mode — exit code based on score delta from baseline
+- [ ] CI mode with exit code based on score delta from baseline
 - [ ] GitHub Action
 - [ ] Trend reports over time
 - [ ] Rule packs for Chakra UI, Tailwind, and custom design systems
@@ -176,7 +176,7 @@ node dist/cli.js test-projects/drifted-app
 
 ## Status
 
-Prototype (`v0.1`) — currently intended for private feedback and early testing.
+Prototype (`v0.1`), currently intended for private feedback and early testing.
 
 ---
 
