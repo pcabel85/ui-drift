@@ -133,6 +133,23 @@ Place `ui-drift.config.json` in the root of the project you are auditing:
 
 All fields are optional. See [docs/config.md](docs/config.md) for the full reference including monorepo support (`internalDSPaths`), penalty tuning, and score weight customisation.
 
+### Automatic design system detection
+
+If ui-drift detects extremely low design system adoption on the first run, it will attempt to discover likely shared UI or design-system paths and suggest a configuration automatically.
+
+```bash
+# Force detection on any repo
+node dist/cli.js ./my-app --detect-ds
+
+# Write the suggested config to disk
+node dist/cli.js ./my-app --detect-ds --write-config
+
+# Rerun the audit immediately with the suggestion applied
+node dist/cli.js ./my-app --detect-ds --rerun-with-suggestion
+```
+
+See [docs/auto-detect-design-system.md](docs/auto-detect-design-system.md) for the full explanation.
+
 ---
 
 ## Docs
@@ -144,6 +161,7 @@ All fields are optional. See [docs/config.md](docs/config.md) for the full refer
 | [docs/json-schema.md](docs/json-schema.md) | JSON output schema reference |
 | [docs/architecture.md](docs/architecture.md) | Project structure, data flow, tech stack |
 | [docs/philosophy.md](docs/philosophy.md) | Design decisions and guiding principles |
+| [docs/auto-detect-design-system.md](docs/auto-detect-design-system.md) | How automatic DS detection works |
 
 ---
 
