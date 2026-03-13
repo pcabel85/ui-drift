@@ -149,6 +149,8 @@ export function printTerminalReport(
   if (result.duplicateFindings.length === 0) {
     console.log(`  ${chalk.green('✓')} No significant duplicate component families detected`);
   } else {
+    console.log(chalk.gray(`  Components are classified as: ${chalk.red('standalone')} · ${chalk.cyan('wrapper')} · ${chalk.blue('feature-composed')}`));
+    console.log('');
     console.log(chalk.gray('  Component classification'));
     console.log('');
     console.log(`    ${chalk.red('standalone')}         A component that implements UI behavior independently, with no approved DS primitive underneath it.`);

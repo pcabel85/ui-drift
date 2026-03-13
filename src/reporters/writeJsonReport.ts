@@ -165,6 +165,7 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
     .dup-why { font-size: 0.8rem; color: #64748b; font-style: italic; border-top: 1px solid #1e293b; padding-top: 0.5rem; margin-top: 0.5rem; line-height: 1.5; }
     .dup-excluded { font-size: 0.75rem; font-style: italic; color: #64748b; margin-top: 0.35rem; }
     .kind-legend { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.25rem; padding: 0.875rem 1rem; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b; }
+    .kind-legend-subtitle { font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .kind-legend-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; font-weight: 600; margin-bottom: 0.25rem; }
     .kind-legend-row { display: flex; align-items: baseline; gap: 0.6rem; font-size: 0.8rem; }
     .kind-legend-row .kind-badge { flex-shrink: 0; }
@@ -239,6 +240,7 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
     <h2>🔁 Potential Duplicate Components</h2>
     ${result.duplicateFindings.length > 0 ? `
     <div class="kind-legend">
+      <div class="kind-legend-subtitle">Components are classified as: <span class="kind-badge standalone">standalone</span> &middot; <span class="kind-badge wrapper">wrapper</span> &middot; <span class="kind-badge feature-composed">feature-composed</span></div>
       <div class="kind-legend-title">Component classification</div>
       <div class="kind-legend-row"><span class="kind-badge standalone">standalone</span><span>Implements UI behavior independently, with no approved DS primitive underneath it.</span></div>
       <div class="kind-legend-row"><span class="kind-badge wrapper">wrapper</span><span>Wraps an approved DS primitive and mainly adds styling or minor behavior.</span></div>
