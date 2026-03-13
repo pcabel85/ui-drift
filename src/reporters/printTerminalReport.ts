@@ -149,6 +149,13 @@ export function printTerminalReport(
   if (result.duplicateFindings.length === 0) {
     console.log(`  ${chalk.green('✓')} No significant duplicate component families detected`);
   } else {
+    console.log(chalk.gray('  Component classification'));
+    console.log('');
+    console.log(`    ${chalk.red('standalone')}         A component that implements UI behavior independently, with no approved DS primitive underneath it.`);
+    console.log(`    ${chalk.cyan('wrapper')}            A thin component that wraps an approved DS primitive and mainly adds styling or minor behavior.`);
+    console.log(`    ${chalk.blue('feature-composed')}   A product-specific component built on DS primitives. Represents a real interaction, not a reusable UI element.`);
+    console.log('');
+
     for (const finding of result.duplicateFindings) {
       console.log(`  ${severityBadge(finding.severity)}  ${chalk.bold(finding.family + ' family')}   ${confidenceBadge(finding.confidence)}`);
       console.log('');
