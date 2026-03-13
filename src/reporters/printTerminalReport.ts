@@ -156,6 +156,11 @@ export function printTerminalReport(
         const rel = path.relative(targetDir, comp.filePath);
         console.log(`    ${chalk.gray('└─')} ${rel}${kindLabel(comp.kind, comp.wraps)}`);
       }
+      if (finding.featureComponentsExcluded > 0) {
+        const exampleMatch = finding.reason.match(/e\.g\. ([A-Z][A-Za-z]+)/);
+        const exampleStr = exampleMatch ? ` (e.g. ${exampleMatch[1]})` : '';
+        console.log(`    ${chalk.gray(`ℹ ${finding.featureComponentsExcluded} feature-specific component${finding.featureComponentsExcluded > 1 ? 's' : ''}${exampleStr} excluded — not counted as primitives`)}`);
+      }
       console.log('');
       console.log(`    ${chalk.gray('Reason:')} ${finding.reason}`);
       console.log('');

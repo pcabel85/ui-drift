@@ -1,5 +1,5 @@
 import { ComponentProfile, DSAuditConfig, DuplicateFinding, DuplicateComponent, Confidence } from '../types';
-import { normalizeComponentName } from '../utils/normalizeComponentName';
+import { normalizeComponentName, isPrimitiveLike } from '../utils/normalizeComponentName';
 
 interface FamilyMember {
   profile: ComponentProfile;
@@ -13,6 +13,7 @@ export function analyzeDuplicateFamilies(
   config: DSAuditConfig
 ): DuplicateFinding[] {
   const families: Map<string, FamilyMember[]> = new Map();
+  const internalDSPaths = config.internalDSPaths ?? [];
 
   for (const profile of profiles) {
     const family = normalizeComponentName(profile.componentName);
@@ -21,7 +22,7 @@ export function analyzeDuplicateFamilies(
     const usesApprovedDS = profile.imports.some((imp) =>
       config.designSystemImports.some(
         (ds) => imp.source === ds || imp.source.startsWith(`${ds}/`) || imp.source.startsWith(ds)
-      )
+      ) || internalDSPaths.some((p) => imp.source.replace(/\\/g, '/').includes(p))
     );
 
     let kind: 'wrapper' | 'standalone' = 'standalone';
@@ -47,20 +48,34 @@ export function analyzeDuplicateFamilies(
   for (const [family, members] of families.entries()) {
     if (members.length < 2) continue;
 
-    const severity = calculateSeverity(members);
+    // Bucket members into three groups
+    const normalizedInternalPaths = internalDSPaths.map((p) => p.replace(/\\/g, '/'));
+    const canonicalDS = members.filter((m) =>
+      normalizedInternalPaths.some((p) => m.profile.filePath.replace(/\\/g, '/').includes(p))
+    );
+    const nonCanonical = members.filter((m) => !canonicalDS.includes(m));
+    const primitiveMembers = nonCanonical.filter((m) => isPrimitiveLike(m.profile.componentName));
+    const featureMembers = nonCanonical.filter((m) => !isPrimitiveLike(m.profile.componentName));
+
+    // Need at least 2 primitive members to flag as a duplicate family
+    if (primitiveMembers.length < 2) continue;
+
+    const severity = calculateSeverity(primitiveMembers);
     if (!severity) continue;
 
-    const confidence = calculateConfidence(members);
-    const reason = buildReason(members, severity);
-    const whyItMatters = buildWhyItMatters(family, members, severity);
+    const confidence = calculateConfidence(primitiveMembers);
+    const featureComponentsExcluded = featureMembers.length;
+    const exampleFeature = featureMembers[0]?.profile.componentName;
+    const reason = buildReason(primitiveMembers, severity, featureComponentsExcluded, exampleFeature);
+    const whyItMatters = buildWhyItMatters(family, primitiveMembers, severity);
 
-    const components: DuplicateComponent[] = members.map((m) => ({
+    const components: DuplicateComponent[] = primitiveMembers.map((m) => ({
       filePath: m.profile.filePath,
       kind: m.kind,
       wraps: m.wraps,
     }));
 
-    findings.push({ family, severity, components, reason, confidence, whyItMatters });
+    findings.push({ family, severity, components, reason, confidence, whyItMatters, featureComponentsExcluded });
   }
 
   const severityOrder = { high: 0, medium: 1, low: 2 };
@@ -99,7 +114,12 @@ function calculateConfidence(members: FamilyMember[]): Confidence {
   return 'low';
 }
 
-function buildReason(members: FamilyMember[], severity: 'high' | 'medium' | 'low'): string {
+function buildReason(
+  members: FamilyMember[],
+  severity: 'high' | 'medium' | 'low',
+  featureComponentsExcluded: number,
+  exampleFeature?: string
+): string {
   const standalones = members.filter((m) => m.kind === 'standalone' && !m.usesApprovedDS);
   const wrappers = members.filter((m) => m.kind === 'wrapper');
   const parts: string[] = [];
@@ -119,6 +139,11 @@ function buildReason(members: FamilyMember[], severity: 'high' | 'medium' | 'low
   const sharedProps = COMMON_PROPS.filter((p) => memberPropSets.every((s) => s.has(p)));
   if (sharedProps.length >= 2) {
     parts.push(`overlapping props: ${sharedProps.join(', ')}`);
+  }
+
+  if (featureComponentsExcluded > 0) {
+    const example = exampleFeature ? ` (e.g. ${exampleFeature})` : '';
+    parts.push(`${featureComponentsExcluded} feature-specific component${featureComponentsExcluded > 1 ? 's' : ''}${example} excluded from count`);
   }
 
   return parts.join('; ');

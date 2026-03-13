@@ -58,6 +58,12 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
       return `<div class="comp-row">${rel} ${kindHtml}</div>`;
     }).join('');
 
+    const exampleMatch = d.reason.match(/e\.g\. ([A-Z][A-Za-z]+)/);
+    const exampleStr = exampleMatch ? ` (e.g. ${exampleMatch[1]})` : '';
+    const excludedHtml = d.featureComponentsExcluded > 0
+      ? `<div class="dup-excluded">ℹ ${d.featureComponentsExcluded} feature-specific component${d.featureComponentsExcluded > 1 ? 's' : ''}${exampleStr} excluded — not counted as primitives</div>`
+      : '';
+
     return `
       <div class="dup-card">
         <div class="dup-header">
@@ -66,6 +72,7 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
           <span class="conf" style="color:${confColor(d.confidence)}">${confDots(d.confidence)} Confidence: ${d.confidence}</span>
         </div>
         <div class="comp-list">${compList}</div>
+        ${excludedHtml}
         <div class="dup-reason"><strong>Reason:</strong> ${d.reason}</div>
         <div class="dup-why"><strong>Why it matters:</strong> ${d.whyItMatters}</div>
       </div>`;
@@ -153,6 +160,7 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
     .kind-badge.standalone { background: #7f1d1d20; color: #fca5a5; border: 1px solid #7f1d1d; }
     .dup-reason { font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem; }
     .dup-why { font-size: 0.8rem; color: #64748b; font-style: italic; border-top: 1px solid #1e293b; padding-top: 0.5rem; margin-top: 0.5rem; line-height: 1.5; }
+    .dup-excluded { font-size: 0.75rem; font-style: italic; color: #64748b; margin-top: 0.35rem; }
 
     /* Recommendations */
     .rec-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }

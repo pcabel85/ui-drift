@@ -15,8 +15,14 @@ export function analyzeImportUsage(
 ): ImportUsageResult {
   const approvedImportCounts: Record<string, number> = {};
   const localUiImportCounts: Record<string, number> = {};
+  const internalDSPaths = config.internalDSPaths ?? [];
 
   for (const profile of profiles) {
+    // Files that live inside an internalDSPaths directory are part of the DS itself —
+    // skip their imports entirely to avoid inflating local UI counts.
+    const normalizedFilePath = profile.filePath.replace(/\\/g, '/');
+    if (internalDSPaths.some((p) => normalizedFilePath.includes(p))) continue;
+
     for (const importInfo of profile.imports) {
       const src = importInfo.source;
 
@@ -27,6 +33,22 @@ export function analyzeImportUsage(
 
       if (matchedDS) {
         // Count per-specifier for detailed breakdown
+        for (const specifier of importInfo.specifiers) {
+          if (specifier === 'default' || specifier === '*') {
+            const key = src;
+            approvedImportCounts[key] = (approvedImportCounts[key] || 0) + 1;
+          } else {
+            const key = `${src}/${specifier}`;
+            approvedImportCounts[key] = (approvedImportCounts[key] || 0) + 1;
+          }
+        }
+        continue;
+      }
+
+      // Check if this import resolves through an internalDSPaths segment
+      const normalizedSrc = src.replace(/\\/g, '/');
+      const matchedInternal = internalDSPaths.find((p) => normalizedSrc.includes(p));
+      if (matchedInternal) {
         for (const specifier of importInfo.specifiers) {
           if (specifier === 'default' || specifier === '*') {
             const key = src;

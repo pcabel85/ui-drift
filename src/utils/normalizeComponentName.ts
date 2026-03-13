@@ -10,6 +10,28 @@ const STRIP_WORDS = [
   'container', 'layout', 'styled',
 ];
 
+// Generic UI modifiers that do not indicate domain specificity
+const GENERIC_MODIFIERS = [
+  'primary', 'secondary', 'tertiary', 'ghost', 'outlined', 'outline', 'filled',
+  'solid', 'flat', 'rounded', 'icon', 'link', 'split', 'arrow',
+  'cta', 'base', 'custom', 'shared', 'common', 'app', 'main', 'default',
+  'new', 'old', 'legacy', 'v2', 'v3', 'enhanced', 'extended', 'simple', 'basic',
+  'small', 'large', 'medium', 'mini', 'compact', 'full', 'page', 'section',
+  'widget', 'component', 'element', 'item', 'action', 'hero', 'promo',
+  'global', 'local', 'inner', 'outer', 'wrapper', 'container', 'layout', 'styled',
+  'feature', 'marketing', 'product', 'user', 'auth',
+];
+
+const UI_NOUNS = [
+  'accordion', 'alert', 'avatar', 'badge', 'breadcrumb', 'button',
+  'card', 'checkbox', 'chip', 'container', 'dialog', 'divider',
+  'drawer', 'dropdown', 'form', 'grid', 'heading', 'icon',
+  'input', 'label', 'link', 'list', 'loader', 'menu', 'modal',
+  'nav', 'pagination', 'popover', 'radio', 'select', 'skeleton',
+  'slider', 'spinner', 'stack', 'stepper', 'switch', 'tab', 'tabs',
+  'table', 'tag', 'text', 'textarea', 'toggle', 'tooltip', 'box',
+];
+
 /**
  * Given a PascalCase component name, returns a normalized family noun (lowercase)
  * or null if no known UI noun is found.
@@ -25,17 +47,6 @@ export function normalizeComponentName(name: string): string | null {
   // Remove strip words to find the core noun
   const coreWords = words.filter((w) => !STRIP_WORDS.includes(w));
 
-  // Check against known UI nouns (longer matches first to avoid partial matches)
-  const UI_NOUNS = [
-    'accordion', 'alert', 'avatar', 'badge', 'breadcrumb', 'button',
-    'card', 'checkbox', 'chip', 'container', 'dialog', 'divider',
-    'drawer', 'dropdown', 'form', 'grid', 'heading', 'icon',
-    'input', 'label', 'link', 'list', 'loader', 'menu', 'modal',
-    'nav', 'pagination', 'popover', 'radio', 'select', 'skeleton',
-    'slider', 'spinner', 'stack', 'stepper', 'switch', 'tab', 'tabs',
-    'table', 'tag', 'text', 'textarea', 'toggle', 'tooltip', 'box',
-  ];
-
   // Try core words first, then all words
   for (const wordSet of [coreWords, words]) {
     for (const noun of UI_NOUNS) {
@@ -48,6 +59,31 @@ export function normalizeComponentName(name: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Returns true if the component name looks like a primitive/generic UI component
+ * (e.g. PrimaryButton, GhostCard) rather than a domain-specific feature component
+ * (e.g. AcceptBookingButton, CreateEventModal).
+ *
+ * Splits the PascalCase name into words, removes the UI family noun and generic
+ * modifiers, and returns false (feature component) if 2 or more non-generic domain
+ * words remain.
+ */
+export function isPrimitiveLike(componentName: string): boolean {
+  const words = componentName
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/);
+
+  // Remove UI nouns and generic modifiers — what's left are domain-specific words
+  const domainWords = words.filter(
+    (w) => !UI_NOUNS.some((n) => w === n || w.startsWith(n)) && !GENERIC_MODIFIERS.includes(w)
+  );
+
+  // 2+ domain-specific words = feature component, not a primitive
+  return domainWords.length < 2;
 }
 
 /**

@@ -4,6 +4,7 @@
     "@mui/icons-material",
     "@company/ui"
   ],
+  "internalDSPaths": [],
   "ignorePaths": [
     "node_modules",
     "dist",

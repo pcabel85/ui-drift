@@ -1,5 +1,12 @@
 export interface DSAuditConfig {
   designSystemImports: string[];
+  /**
+   * Path segments that identify monorepo-internal UI packages (e.g. ["packages/ui"]).
+   * Any import whose source contains one of these segments is treated as an approved
+   * DS import. Components whose filePath lives inside one of these directories are
+   * considered canonical DS primitives and are never flagged as duplicates.
+   */
+  internalDSPaths: string[];
   ignorePaths: string[];
   familyKeywords: string[];
   penalties: {
@@ -64,6 +71,8 @@ export interface DuplicateFinding {
   confidence: Confidence;
   /** Human-readable explanation of why this matters */
   whyItMatters: string;
+  /** Number of feature-specific components excluded from severity calculation */
+  featureComponentsExcluded: number;
 }
 
 /** Per-dimension breakdown shown alongside the final score */

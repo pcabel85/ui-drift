@@ -260,6 +260,26 @@ Place `ui-drift.config.json` in the root of the project you are auditing, or pas
 
 All fields are optional — any omitted field falls back to the built-in default.
 
+### `internalDSPaths`
+
+For monorepos that maintain their own internal UI package (e.g. `packages/ui`), ui-drift would otherwise misclassify imports from that package as local drift and give a 0% adoption score.
+
+`internalDSPaths` accepts an array of path segments. Any import whose source path contains one of these segments is treated as an approved DS import. Components whose `filePath` lives inside one of these directories are treated as canonical DS primitives and are never flagged as duplicates.
+
+**Example — cal.com monorepo:**
+
+```json
+{
+  "designSystemImports": ["@calcom/ui"],
+  "internalDSPaths": ["packages/ui"]
+}
+```
+
+With this config:
+- Imports from `../../packages/ui/Button` are counted as approved DS usage
+- Files inside `packages/ui/` are the canonical source of truth — never flagged as duplicates
+- Domain-specific wrappers like `AcceptBookingButton` are excluded from primitive duplicate counts and reported transparently
+
 ---
 
 ## JSON output schema

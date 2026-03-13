@@ -7,6 +7,7 @@ export const defaultConfig: DSAuditConfig = {
     '@company/ui',
     '@design-system/components',
   ],
+  internalDSPaths: [],
   ignorePaths: [
     'node_modules',
     'dist',
