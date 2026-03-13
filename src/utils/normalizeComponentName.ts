@@ -47,9 +47,13 @@ export function normalizeComponentName(name: string): string | null {
   // Remove strip words to find the core noun
   const coreWords = words.filter((w) => !STRIP_WORDS.includes(w));
 
+  // Sort longest-first so more specific nouns win over prefixes
+  // (e.g. "table" must match before "tab", "stepper" before "step")
+  const sortedNouns = [...UI_NOUNS].sort((a, b) => b.length - a.length);
+
   // Try core words first, then all words
   for (const wordSet of [coreWords, words]) {
-    for (const noun of UI_NOUNS) {
+    for (const noun of sortedNouns) {
       if (wordSet.includes(noun)) return noun;
       // Partial match: a word contains the noun (e.g. "buttons" -> "button")
       for (const w of wordSet) {
