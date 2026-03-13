@@ -28,8 +28,9 @@ function confidenceBadge(confidence: 'high' | 'medium' | 'low'): string {
   return chalk.gray('Confidence: Low ●○○');
 }
 
-function kindLabel(kind: 'wrapper' | 'standalone', wraps?: string): string {
+function kindLabel(kind: 'wrapper' | 'standalone' | 'feature-composed', wraps?: string): string {
   if (kind === 'wrapper' && wraps) return chalk.cyan(`  [wrapper → ${wraps}]`);
+  if (kind === 'feature-composed') return chalk.blue('  [feature-composed — uses DS primitives]');
   return chalk.red('  [standalone — no approved DS import]');
 }
 

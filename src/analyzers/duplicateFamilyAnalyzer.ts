@@ -4,7 +4,7 @@ import { normalizeComponentName, isPrimitiveLike } from '../utils/normalizeCompo
 interface FamilyMember {
   profile: ComponentProfile;
   usesApprovedDS: boolean;
-  kind: 'wrapper' | 'standalone';
+  kind: 'wrapper' | 'standalone' | 'feature-composed';
   wraps?: string;
 }
 
@@ -25,9 +25,10 @@ export function analyzeDuplicateFamilies(
       ) || internalDSPaths.some((p) => imp.source.replace(/\\/g, '/').includes(p))
     );
 
-    let kind: 'wrapper' | 'standalone' = 'standalone';
+    let kind: 'wrapper' | 'standalone' | 'feature-composed' = 'standalone';
     let wraps: string | undefined;
 
+    // Thin wrapper: directly renders a same-family approved DS component
     if (profile.wrapsApprovedComponent && profile.approvedBaseComponents.length > 0) {
       for (const base of profile.approvedBaseComponents) {
         const baseFamily = normalizeComponentName(base);
@@ -39,6 +40,12 @@ export function analyzeDuplicateFamilies(
       }
     }
 
+    // Feature-composed: uses DS primitives but has its own domain logic
+    // (not a thin same-family wrapper, but not flying blind either)
+    if (kind === 'standalone' && usesApprovedDS) {
+      kind = 'feature-composed';
+    }
+
     if (!families.has(family)) families.set(family, []);
     families.get(family)!.push({ profile, usesApprovedDS, kind, wraps });
   }
@@ -48,7 +55,7 @@ export function analyzeDuplicateFamilies(
   for (const [family, members] of families.entries()) {
     if (members.length < 2) continue;
 
-    // Bucket members into three groups
+    // Bucket members
     const normalizedInternalPaths = internalDSPaths.map((p) => p.replace(/\\/g, '/'));
     const canonicalDS = members.filter((m) =>
       normalizedInternalPaths.some((p) => m.profile.filePath.replace(/\\/g, '/').includes(p))
@@ -64,21 +71,10 @@ export function analyzeDuplicateFamilies(
     if (!severity) continue;
 
     const confidence = calculateConfidence(primitiveMembers);
-
-    // Down-rank wrapper-heavy families: wrappers around approved DS components are
-    // much less concerning than independent reimplementations.
-    const wrapperCount = primitiveMembers.filter((m) => m.kind === 'wrapper').length;
-    const standaloneCount = primitiveMembers.filter((m) => m.kind === 'standalone').length;
-    let effectiveSeverity: 'high' | 'medium' | 'low' = severity;
-    if (wrapperCount > standaloneCount) {
-      if (effectiveSeverity === 'high') effectiveSeverity = 'medium';
-      if (confidence === 'low') effectiveSeverity = 'low';
-    }
-
     const featureComponentsExcluded = featureMembers.length;
     const exampleFeature = featureMembers[0]?.profile.componentName;
-    const reason = buildReason(primitiveMembers, effectiveSeverity, featureComponentsExcluded, exampleFeature);
-    const whyItMatters = buildWhyItMatters(family, primitiveMembers, effectiveSeverity);
+    const reason = buildReason(primitiveMembers, featureComponentsExcluded, exampleFeature);
+    const whyItMatters = buildWhyItMatters(family, primitiveMembers, severity);
 
     const components: DuplicateComponent[] = primitiveMembers.map((m) => ({
       filePath: m.profile.filePath,
@@ -86,7 +82,7 @@ export function analyzeDuplicateFamilies(
       wraps: m.wraps,
     }));
 
-    findings.push({ family, severity: effectiveSeverity, components, reason, confidence, whyItMatters, featureComponentsExcluded });
+    findings.push({ family, severity, components, reason, confidence, whyItMatters, featureComponentsExcluded });
   }
 
   const severityOrder = { high: 0, medium: 1, low: 2 };
@@ -96,16 +92,17 @@ export function analyzeDuplicateFamilies(
 }
 
 function calculateSeverity(members: FamilyMember[]): 'high' | 'medium' | 'low' | null {
-  const count = members.length;
-  const standaloneCount = members.filter((m) => m.kind === 'standalone' && !m.usesApprovedDS).length;
+  const standaloneCount = members.filter((m) => m.kind === 'standalone').length;
   const wrapperCount = members.filter((m) => m.kind === 'wrapper').length;
+  // feature-composed members use DS primitives intentionally — they don't contribute to severity
+  // wrapper sprawl is surfaced separately by the wrapperAnalyzer; here wrappers are capped at medium
 
-  if (count >= 3 && standaloneCount >= 2) return 'high';
-  if (count >= 4) return 'high';
+  if (standaloneCount >= 2) return 'high';
+  if (standaloneCount >= 1 && wrapperCount >= 1) return 'medium';
+  if (standaloneCount >= 1) return 'medium';
   if (wrapperCount >= 2) return 'medium';
-  if (count >= 2 && standaloneCount >= 1) return 'medium';
-  if (count >= 2) return 'low';
 
+  // Only feature-composed members — nothing actionable
   return null;
 }
 
@@ -127,15 +124,15 @@ function calculateConfidence(members: FamilyMember[]): Confidence {
 
 function buildReason(
   members: FamilyMember[],
-  severity: 'high' | 'medium' | 'low',
   featureComponentsExcluded: number,
   exampleFeature?: string
 ): string {
-  const standalones = members.filter((m) => m.kind === 'standalone' && !m.usesApprovedDS);
+  const standalones = members.filter((m) => m.kind === 'standalone');
   const wrappers = members.filter((m) => m.kind === 'wrapper');
+  const featureComposed = members.filter((m) => m.kind === 'feature-composed');
   const parts: string[] = [];
 
-  parts.push(`${members.length} components with similar names`);
+  parts.push(`${members.length} primitive-class components`);
 
   if (standalones.length > 0) {
     parts.push(`${standalones.length} standalone${standalones.length > 1 ? 's' : ''} without approved DS imports`);
@@ -143,6 +140,9 @@ function buildReason(
   if (wrappers.length > 0) {
     const bases = [...new Set(wrappers.map((w) => w.wraps).filter(Boolean))];
     parts.push(`${wrappers.length} wrapper${wrappers.length > 1 ? 's' : ''} around ${bases.join(', ')}`);
+  }
+  if (featureComposed.length > 0) {
+    parts.push(`${featureComposed.length} feature-composed using DS primitives`);
   }
 
   const COMMON_PROPS = ['variant', 'size', 'color', 'disabled', 'onClick', 'children'];
@@ -168,11 +168,18 @@ function buildWhyItMatters(
   const standaloneCount = members.filter((m) => m.kind === 'standalone').length;
   const wrapperCount = members.filter((m) => m.kind === 'wrapper').length;
 
-  if (severity === 'high') {
+  if (severity === 'high' && standaloneCount >= 2) {
     return (
       `Multiple independent ${family} implementations increase maintenance cost and cause ` +
       `visual inconsistency — the same UI element may look or behave differently across features. ` +
       `Bug fixes and design updates must be applied in ${standaloneCount} places instead of one.`
+    );
+  }
+  if (wrapperCount >= 3) {
+    return (
+      `${wrapperCount} thin wrappers around the same base ${family} component signal that teams are ` +
+      `working around each other instead of sharing. This often grows over time — ` +
+      `consolidating to a single shared wrapper prevents further drift.`
     );
   }
   if (wrapperCount >= 2) {

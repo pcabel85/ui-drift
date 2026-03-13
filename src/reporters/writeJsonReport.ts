@@ -54,6 +54,8 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
       const rel = path.relative(targetDir, c.filePath);
       const kindHtml = c.kind === 'wrapper' && c.wraps
         ? `<span class="kind-badge wrapper">wrapper → ${c.wraps}</span>`
+        : c.kind === 'feature-composed'
+        ? `<span class="kind-badge feature-composed">feature-composed</span>`
         : `<span class="kind-badge standalone">standalone</span>`;
       return `<div class="comp-row">${rel} ${kindHtml}</div>`;
     }).join('');
@@ -156,8 +158,9 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
     .comp-list { margin: 0.5rem 0 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; }
     .comp-row { font-family: monospace; font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 0.5rem; }
     .kind-badge { font-size: 0.7rem; font-family: sans-serif; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 4px; white-space: nowrap; }
-    .kind-badge.wrapper    { background: #1d4ed820; color: #60a5fa; border: 1px solid #1d4ed8; }
-    .kind-badge.standalone { background: #7f1d1d20; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .kind-badge.wrapper          { background: #1d4ed820; color: #60a5fa; border: 1px solid #1d4ed8; }
+    .kind-badge.standalone       { background: #7f1d1d20; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .kind-badge.feature-composed { background: #4c1d9520; color: #a78bfa; border: 1px solid #4c1d95; }
     .dup-reason { font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem; }
     .dup-why { font-size: 0.8rem; color: #64748b; font-style: italic; border-top: 1px solid #1e293b; padding-top: 0.5rem; margin-top: 0.5rem; line-height: 1.5; }
     .dup-excluded { font-size: 0.75rem; font-style: italic; color: #64748b; margin-top: 0.35rem; }

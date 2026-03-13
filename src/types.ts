@@ -49,8 +49,13 @@ export interface ComponentProfile {
   hardcodedSpacingCount: number;
 }
 
-/** How a component in a duplicate family is classified */
-export type ComponentKind = 'wrapper' | 'standalone';
+/**
+ * How a component in a duplicate family is classified:
+ * - standalone      — no approved DS imports; truly rolling its own
+ * - wrapper         — thin wrapper around the same-family DS component (e.g. AppButton → Button)
+ * - feature-composed — product component built on DS primitives but with domain logic (e.g. BookingList, RoleSelector)
+ */
+export type ComponentKind = 'wrapper' | 'standalone' | 'feature-composed';
 
 export interface DuplicateComponent {
   filePath: string;
