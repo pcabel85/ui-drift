@@ -15,12 +15,33 @@ export function calculateHealthScore(
   const adoptionScore = Math.round(importUsage.adoptionRatio * 100);
 
   // ── 2. Duplicate components (20%) ─────────────────────────────────────────────
-  let duplicatePenaltyRaw = 0;
-  for (const finding of duplicateFindings) {
-    if (finding.severity === 'high') duplicatePenaltyRaw += config.penalties.duplicateHigh;
-    else if (finding.severity === 'medium') duplicatePenaltyRaw += config.penalties.duplicateMedium;
-    else duplicatePenaltyRaw += config.penalties.duplicateLow;
-  }
+  // Two-layer penalty model:
+  //
+  // 1. Standalone weighting — each finding's base penalty is multiplied by the
+  //    fraction of its primitive components that are true standalones (no DS
+  //    imports). Wrappers and feature-composed members use the DS intentionally
+  //    and should not drive full penalty. Floor 0.15 keeps wrapper sprawl on
+  //    the radar without amplifying it.
+  //
+  // 2. Diminishing returns — findings are sorted worst-first and each successive
+  //    finding is discounted by 1/(1 + i * 0.15). The first (worst) finding
+  //    counts fully; by the 10th it counts ~40%; by the 20th ~25%. This prevents
+  //    a long tail of medium/low families from accumulating to a 0/20 score on
+  //    repos that have many localized UI variants.
+  const effectivePenalties = duplicateFindings.map((finding) => {
+    const basePenalty =
+      finding.severity === 'high'     ? config.penalties.duplicateHigh
+      : finding.severity === 'medium' ? config.penalties.duplicateMedium
+      : config.penalties.duplicateLow;
+    const standaloneCount = finding.components.filter((c) => c.kind === 'standalone').length;
+    const standaloneRatio = standaloneCount / Math.max(1, finding.components.length);
+    return basePenalty * Math.max(0.15, standaloneRatio);
+  });
+  effectivePenalties.sort((a, b) => b - a); // worst first
+  const duplicatePenaltyRaw = effectivePenalties.reduce(
+    (sum, p, i) => sum + p * (1 / (1 + i * 0.15)),
+    0
+  );
   const duplicateScore = Math.max(0, 100 - duplicatePenaltyRaw);
 
   // ── 3 & 4. Token compliance and inline styles — normalised by repo size ───────
