@@ -91,34 +91,50 @@ export function analyzeDuplicateFamilies(
   return findings;
 }
 
-function calculateSeverity(members: FamilyMember[]): 'high' | 'medium' | 'low' | null {
-  const standaloneCount = members.filter((m) => m.kind === 'standalone').length;
-  const wrapperCount = members.filter((m) => m.kind === 'wrapper').length;
-  // feature-composed members use DS primitives intentionally — they don't contribute to severity
-  // wrapper sprawl is surfaced separately by the wrapperAnalyzer; here wrappers are capped at medium
+const COMMON_PROPS = ['variant', 'size', 'color', 'disabled', 'onClick', 'children', 'className', 'label', 'placeholder'];
 
-  if (standaloneCount >= 2) return 'high';
+/** Count how many common props are shared across every member in the set. */
+function sharedPropCount(propSets: Set<string>[]): number {
+  if (propSets.length < 2) return 0;
+  return COMMON_PROPS.filter((p) => propSets.every((s) => s.has(p))).length;
+}
+
+function calculateSeverity(members: FamilyMember[]): 'high' | 'medium' | 'low' | null {
+  const standalones = members.filter((m) => m.kind === 'standalone');
+  const wrapperCount = members.filter((m) => m.kind === 'wrapper').length;
+  const standaloneCount = standalones.length;
+  // feature-composed members use DS primitives intentionally — zero severity weight
+  // wrapper sprawl is handled by wrapperAnalyzer; here wrappers are capped at medium
+
+  // Prop overlap measured only across standalones — they're the concerning ones
+  const overlap = sharedPropCount(standalones.map((m) => new Set(m.profile.props)));
+
+  // High: multiple reimplementations with structural similarity — clear duplicates
+  if (standaloneCount >= 2 && overlap >= 1) return 'high';
+  // High: 3+ standalones regardless — obvious drift even without prop evidence
+  if (standaloneCount >= 3) return 'high';
+  // Medium: 2 standalones but no prop overlap — same noun, different structure (may not be true dups)
+  if (standaloneCount >= 2) return 'medium';
+  // Medium: one standalone alongside wrappers — mixed DS usage signals a real problem
   if (standaloneCount >= 1 && wrapperCount >= 1) return 'medium';
-  if (standaloneCount >= 1) return 'medium';
+  // Low: single standalone outlier among otherwise DS-using members
+  if (standaloneCount >= 1) return 'low';
+  // Medium: wrapper sprawl only (no standalones)
   if (wrapperCount >= 2) return 'medium';
 
-  // Only feature-composed members — nothing actionable
   return null;
 }
 
 function calculateConfidence(members: FamilyMember[]): Confidence {
-  const standaloneCount = members.filter((m) => m.kind === 'standalone').length;
-  const COMMON_PROPS = ['variant', 'size', 'color', 'disabled', 'onClick', 'children', 'className'];
-  const memberPropSets = members.map((m) => new Set(m.profile.props));
+  const standalones = members.filter((m) => m.kind === 'standalone');
+  const standaloneCount = standalones.length;
+  // Measure overlap across standalones (the signal that matters) then across all members
+  const standaloneOverlap = sharedPropCount(standalones.map((m) => new Set(m.profile.props)));
+  const allMemberOverlap = sharedPropCount(members.map((m) => new Set(m.profile.props)));
 
-  let sharedPropCount = 0;
-  for (const prop of COMMON_PROPS) {
-    if (memberPropSets.length >= 2 && memberPropSets.every((s) => s.has(prop))) sharedPropCount++;
-  }
-
-  if (standaloneCount >= 2 && sharedPropCount >= 2) return 'high';
+  if (standaloneCount >= 2 && standaloneOverlap >= 2) return 'high';
   if (standaloneCount >= 3) return 'high';
-  if (standaloneCount >= 2 || sharedPropCount >= 1) return 'medium';
+  if (standaloneCount >= 2 || standaloneOverlap >= 1 || allMemberOverlap >= 2) return 'medium';
   return 'low';
 }
 
@@ -145,7 +161,6 @@ function buildReason(
     parts.push(`${featureComposed.length} feature-composed using DS primitives`);
   }
 
-  const COMMON_PROPS = ['variant', 'size', 'color', 'disabled', 'onClick', 'children'];
   const memberPropSets = members.map((m) => new Set(m.profile.props));
   const sharedProps = COMMON_PROPS.filter((p) => memberPropSets.every((s) => s.has(p)));
   if (sharedProps.length >= 2) {
