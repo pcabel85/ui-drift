@@ -290,15 +290,11 @@ async function run() {
         `${detection.candidates.length} candidate${detection.candidates.length !== 1 ? 's' : ''} found`,
       ];
 
-      if (!silent) {
+      if (!silent && !opts.ignoreDriftsense) {
         printDsSuggestions(detection, suggested);
 
         if (topCandidate?.confidence === 'medium') {
           printDriftSenseMediumWarning();
-        }
-
-        if (opts.ignoreDriftsense && topCandidate?.confidence === 'high') {
-          printIgnoreDriftSenseWarning();
         }
       }
 
