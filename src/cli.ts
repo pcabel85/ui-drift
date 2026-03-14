@@ -319,7 +319,7 @@ async function run() {
   const { result, importUsage, inlineStyles, wrappers } =
     await executeAudit(config, allFiles);
 
-  if (autoDetectEnabled && approvedCount === 0 && localCount >= 25) {
+  if (autoDetectEnabled && !opts.ignoreDriftsense && approvedCount === 0 && localCount >= 25) {
     result.dsDetectionMode = 'driftsense';
   }
 
