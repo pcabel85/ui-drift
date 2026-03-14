@@ -175,8 +175,11 @@ async function run() {
       const suggested    = generateSuggestedConfig(detection.candidates);
       const topCandidate = detection.candidates[0];
 
-      // Pause condition: high-confidence discovery with no approved imports
+      // Pause condition: high-confidence discovery with no approved imports.
+      // Silent modes (--json-only, --score-only) bypass the pause — they are
+      // machine-readable and a silent no-output exit is a silent failure.
       const shouldPause =
+        !silent &&
         !opts.ignoreDriftsense &&
         !opts.rerunWithSuggestion &&
         approvedCount === 0 &&
@@ -306,6 +309,26 @@ async function run() {
           for (const line of applyResult.diffLines) console.log(chalk.gray(`    ${line}`));
           console.log('');
         }
+
+        // Reload from disk so the audit uses the written config, matching subsequent fresh runs
+        const rerunConfig = loadConfig(opts.config, targetDir);
+        const rerun = await executeAudit(rerunConfig, allFiles);
+        rerun.result.dsDetectionMode = 'driftsense';
+        markAuditComplete(pipeline);
+
+        if (opts.scoreOnly) {
+          console.log(rerun.result.healthScore);
+          process.exit(rerun.result.healthScore >= 70 ? 0 : 1);
+        }
+        if (opts.jsonOnly) {
+          console.log(JSON.stringify(rerun.result, null, 2));
+          return;
+        }
+
+        printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline);
+        await writeReports(rerun.result, targetDir);
+        console.log('');
+        return;
       }
 
       if (!silent && !opts.writeConfig) {

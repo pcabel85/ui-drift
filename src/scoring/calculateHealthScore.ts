@@ -66,28 +66,30 @@ export function calculateHealthScore(
   const inlineStyleScore = Math.max(0, 100 - inlineStylePenaltyRaw);
 
   // ── Weighted contributions ─────────────────────────────────────────────────────
-  const adoptionContribution  = (adoptionScore    * weights.approvedAdoption)   / 100;
-  const duplicateContribution = (duplicateScore   * weights.duplicateComponents) / 100;
-  const tokenContribution     = (tokenScore       * weights.tokenCompliance)     / 100;
-  const inlineContribution    = (inlineStyleScore * weights.inlineStyles)        / 100;
+  // Round each contribution independently so the displayed breakdown values
+  // always sum exactly to healthScore — no ±1 rounding drift.
+  const adoptionContribution  = Math.round((adoptionScore    * weights.approvedAdoption)   / 100);
+  const duplicateContribution = Math.round((duplicateScore   * weights.duplicateComponents) / 100);
+  const tokenContribution     = Math.round((tokenScore       * weights.tokenCompliance)     / 100);
+  const inlineContribution    = Math.round((inlineStyleScore * weights.inlineStyles)        / 100);
 
-  const finalScore = Math.min(100, Math.max(0, Math.round(
+  const finalScore = Math.min(100, Math.max(0,
     adoptionContribution + duplicateContribution + tokenContribution + inlineContribution
-  )));
+  ));
 
   const breakdown: ScoreBreakdown = {
     adoptionScore,
     duplicateScore,
     tokenScore:      Math.round(tokenScore),
     inlineStyleScore: Math.round(inlineStyleScore),
-    adoptionContribution:    Math.round(adoptionContribution),
-    duplicateContribution:   Math.round(duplicateContribution),
-    tokenContribution:       Math.round(tokenContribution),
-    inlineStyleContribution: Math.round(inlineContribution),
-    adoptionPenalty:    Math.round(weights.approvedAdoption    - adoptionContribution),
-    duplicatePenalty:   Math.round(weights.duplicateComponents - duplicateContribution),
-    tokenPenalty:       Math.round(weights.tokenCompliance     - tokenContribution),
-    inlineStylePenalty: Math.round(weights.inlineStyles        - inlineContribution),
+    adoptionContribution,
+    duplicateContribution,
+    tokenContribution,
+    inlineStyleContribution: inlineContribution,
+    adoptionPenalty:    weights.approvedAdoption    - adoptionContribution,
+    duplicatePenalty:   weights.duplicateComponents - duplicateContribution,
+    tokenPenalty:       weights.tokenCompliance     - tokenContribution,
+    inlineStylePenalty: weights.inlineStyles        - inlineContribution,
   };
 
   return { score: finalScore, breakdown };
