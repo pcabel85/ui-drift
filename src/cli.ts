@@ -194,11 +194,6 @@ async function run() {
         pipeline.driftSenseTriggered = true;
         pipeline.driftSenseMode      = 'rerun';
 
-        if (!silent) {
-          printDriftSensePauseBlock(detection, suggested);
-          console.log(chalk.bold('  Rerunning audit with DriftSense suggestion...\n'));
-        }
-
         let rerunConfig: DSAuditConfig;
         if (opts.writeConfig) {
           // Write first, then reload from disk so the in-memory run matches the file exactly
