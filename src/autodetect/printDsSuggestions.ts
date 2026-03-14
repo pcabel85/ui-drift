@@ -1,23 +1,31 @@
 import chalk from 'chalk';
 import { AutoDetectResult, SuggestedConfig } from './types';
 
+const HEAVY = chalk.yellow('━'.repeat(60));
+
 /**
- * Prints DriftSense discovery results to the terminal.
+ * Prints the DriftSense callout block to the terminal.
  */
 export function printDsSuggestions(
   result: AutoDetectResult,
   suggested: SuggestedConfig | null
 ): void {
-  console.log(chalk.yellow('\n  ── DriftSense ────────────────────────────────────────────────\n'));
-  console.log(chalk.yellow(`  Trigger: ${result.triggerReason}`));
+  console.log('');
+  console.log(`  ${HEAVY}`);
+  console.log('');
+  console.log(chalk.bold.yellow('  DriftSense activated'));
+  console.log('');
+  console.log(chalk.gray('  ui-drift detected unusually low design system adoption'));
+  console.log(chalk.gray('  and scanned the repository for shared UI layers.'));
   console.log('');
 
   if (result.candidates.length === 0) {
-    console.log(chalk.gray('  DriftSense found no design system candidates.\n'));
+    console.log(chalk.gray('  No design system candidates found.'));
+    console.log('');
+    console.log(`  ${HEAVY}`);
+    console.log('');
     return;
   }
-
-  console.log(chalk.bold('  DriftSense detected possible internal design system / shared UI locations:\n'));
 
   const UI_KW = ['ui', 'components', 'design-system', 'designsystem', 'primitives', 'component-library'];
   const displayCandidates = result.candidates.filter(c => {
@@ -26,32 +34,40 @@ export function printDsSuggestions(
     return UI_KW.some(kw => rootLower.includes(kw)) || c.detectedPrimitives.length >= 2;
   });
 
-  for (const c of displayCandidates) {
+  console.log(chalk.bold('  Possible design system locations:'));
+  console.log('');
+
+  displayCandidates.forEach((c, i) => {
     const confColor =
       c.confidence === 'high' ? chalk.green :
       c.confidence === 'medium' ? chalk.yellow :
       chalk.gray;
 
-    const confLabel = confColor(`[${c.confidence}]`);
-    const primitiveNote = c.detectedPrimitives.length > 0
-      ? chalk.gray(` — primitives: ${c.detectedPrimitives.slice(0, 6).join(', ')}${c.detectedPrimitives.length > 6 ? ', …' : ''}`)
-      : '';
-    const fileNote = c.importingFileCount > 0
-      ? chalk.gray(` (${c.importingFileCount} files)`)
-      : '';
+    console.log(`  ${chalk.bold(`${i + 1}.`)} ${chalk.cyan(c.importRoot)}  ${confColor(`(${c.confidence} confidence)`)}`);
 
-    console.log(`  ${confLabel} ${chalk.cyan(c.importRoot)}${fileNote}${primitiveNote}`);
-    if (c.fsPath && c.fsPath !== c.importRoot) {
-      console.log(chalk.gray(`          fs: ${c.fsPath}`));
+    if (c.detectedPrimitives.length > 0) {
+      const prims = c.detectedPrimitives.slice(0, 6).join(', ') + (c.detectedPrimitives.length > 6 ? ', …' : '');
+      console.log(chalk.gray(`     contains ${prims}`));
     }
-  }
+    if (c.importingFileCount > 0) {
+      console.log(chalk.gray(`     imported by ${c.importingFileCount} files`));
+    }
+    if (c.fsPath && c.fsPath !== c.importRoot) {
+      console.log(chalk.gray(`     path: ${c.fsPath}`));
+    }
+    console.log('');
+  });
 
   if (!suggested) {
-    console.log(chalk.gray('\n  DriftSense could not generate a config suggestion from these candidates.\n'));
+    console.log(chalk.gray('  DriftSense could not generate a config suggestion from these candidates.'));
+    console.log('');
+    console.log(`  ${HEAVY}`);
+    console.log('');
     return;
   }
 
-  console.log(chalk.bold('\n  DriftSense suggestion:\n'));
+  console.log(chalk.bold('  Suggested configuration:'));
+  console.log('');
   console.log(chalk.gray('  ┌─────────────────────────────────────────────────────────────'));
   console.log(chalk.gray('  │') + chalk.white(' {'));
   if (suggested.designSystemImports.length > 0) {
@@ -74,10 +90,15 @@ export function printDsSuggestions(
   console.log(chalk.gray('  │') + chalk.white(' }'));
   console.log(chalk.gray('  └─────────────────────────────────────────────────────────────'));
   console.log('');
+  console.log(chalk.gray('  Use ') + chalk.cyan('--write-config') + chalk.gray(' to save this suggestion.'));
+  console.log(chalk.gray('  Use ') + chalk.cyan('--rerun-with-suggestion') + chalk.gray(' to rerun the audit with it applied.'));
+  console.log('');
+  console.log(`  ${HEAVY}`);
+  console.log('');
 }
 
 /**
- * Prints a one-line hint about available DriftSense flags.
+ * Prints a short hint when DriftSense ran but the user hasn't acted on it.
  */
 export function printDetectionHint(): void {
   console.log(

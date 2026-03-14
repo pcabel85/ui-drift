@@ -33,11 +33,13 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
   const levelColor = (l: string) =>
     l === 'None' || l === 'Low' ? '#22c55e' : l === 'Moderate' ? '#f59e0b' : '#ef4444';
 
+  const isDriftSense = result.dsDetectionMode === 'driftsense';
   const summaryRows = [
-    { label: 'DS Adoption',        value: `${summary.adoptionPercent}%`,         color: adoptionPct >= 70 ? '#22c55e' : adoptionPct >= 40 ? '#f59e0b' : '#ef4444' },
-    { label: 'Duplicate Families', value: String(summary.duplicateFamilyCount),  color: summary.duplicateFamilyCount === 0 ? '#22c55e' : summary.duplicateFamilyCount <= 2 ? '#f59e0b' : '#ef4444' },
-    { label: 'Inline Style Usage', value: summary.inlineStyleLevel,              color: levelColor(summary.inlineStyleLevel) },
-    { label: 'Token Violations',   value: summary.tokenViolationLevel,           color: levelColor(summary.tokenViolationLevel) },
+    { label: 'DS Adoption',          value: `${summary.adoptionPercent}%`,        color: adoptionPct >= 70 ? '#22c55e' : adoptionPct >= 40 ? '#f59e0b' : '#ef4444' },
+    { label: 'Duplicate Families',   value: String(summary.duplicateFamilyCount), color: summary.duplicateFamilyCount === 0 ? '#22c55e' : summary.duplicateFamilyCount <= 2 ? '#f59e0b' : '#ef4444' },
+    { label: 'Inline Style Usage',   value: summary.inlineStyleLevel,             color: levelColor(summary.inlineStyleLevel) },
+    { label: 'Token Violations',     value: summary.tokenViolationLevel,          color: levelColor(summary.tokenViolationLevel) },
+    { label: 'Discovery Mode',       value: isDriftSense ? 'DriftSense' : 'Standard', color: isDriftSense ? '#f59e0b' : '#64748b' },
   ].map(r => `
     <tr>
       <td>${r.label}</td>

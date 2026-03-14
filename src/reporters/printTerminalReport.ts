@@ -51,16 +51,17 @@ export function printTerminalReport(
   const label = scoreLabel(score);
   const colorFn = scoreColor(score) === 'green' ? chalk.green : scoreColor(score) === 'yellow' ? chalk.yellow : chalk.red;
 
+  const isDriftSense = result.dsDetectionMode === 'driftsense';
+
   console.log('');
   console.log(chalk.bold.blue('  ╔══════════════════════════════════════════╗'));
-  console.log(chalk.bold.blue('  ║       ui-drift  v0.1        ║'));
+  console.log(chalk.bold.blue('  ║                 ui-drift                 ║'));
+  console.log(chalk.bold.blue('  ║    Design System Architecture Audit      ║'));
   console.log(chalk.bold.blue('  ╚══════════════════════════════════════════╝'));
   console.log('');
-  console.log(chalk.gray(`  Target: ${chalk.white(path.resolve(targetDir))}`));
+  console.log(chalk.gray(`  Target:        ${chalk.white(path.resolve(targetDir))}`));
   console.log(chalk.gray(`  Files scanned: ${chalk.white(result.scannedFiles)}`));
-  if (result.dsDetectionMode === 'driftsense') {
-    console.log(chalk.gray(`  DS discovery: ${chalk.yellow('DriftSense')}`));
-  }
+  console.log(chalk.gray(`  Mode:          ${isDriftSense ? chalk.yellow('DriftSense Discovery') : chalk.white('Standard Audit')}`));
   console.log('');
   console.log(DIVIDER);
 
@@ -77,6 +78,7 @@ export function printTerminalReport(
   console.log(`  Duplicate Families   ${dupStyled}`);
   console.log(`  Inline Style Usage   ${levelColor(summary.inlineStyleLevel)}`);
   console.log(`  Token Violations     ${levelColor(summary.tokenViolationLevel)}`);
+  console.log(`  Discovery Mode       ${isDriftSense ? chalk.yellow('DriftSense') : chalk.gray('Standard')}`);
   console.log('');
   if (summary.topIssue !== 'No critical issues detected') {
     console.log(`  ${chalk.yellow('⚑')} Top issue: ${chalk.white(summary.topIssue)}`);
