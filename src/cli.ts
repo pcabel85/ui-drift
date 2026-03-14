@@ -28,7 +28,7 @@ import {
   printIgnoreDriftSenseWarning,
   printDetectionHint,
 } from './autodetect/printDsSuggestions';
-import { applySuggestedConfig, mergeConfigInMemory } from './autodetect/applySuggestedConfig';
+import { applySuggestedConfig } from './autodetect/applySuggestedConfig';
 
 const program = new Command();
 
@@ -185,11 +185,9 @@ async function run() {
           console.log(chalk.bold('  Rerunning audit with DriftSense suggestion...\n'));
         }
 
-        const mergedConfig = mergeConfigInMemory(config, suggested);
-        const rerun = await executeAudit(mergedConfig, allFiles, silent);
-        rerun.result.dsDetectionMode = 'driftsense';
-
+        let rerunConfig: DSAuditConfig;
         if (opts.writeConfig) {
+          // Write first, then reload from disk so the in-memory run matches the file exactly
           const applyResult = applySuggestedConfig(suggested, targetDir);
           if (!silent) {
             const label = applyResult.hadExistingConfig ? 'Config merged into' : 'Config written to';
@@ -197,7 +195,37 @@ async function run() {
             for (const line of applyResult.diffLines) console.log(chalk.gray(`    ${line}`));
             console.log('');
           }
+          rerunConfig = loadConfig(opts.config, targetDir);
+        } else {
+          // In-memory only: mirror applySuggestedConfig behaviour — union the existing
+          // config file's entries (if any) with the suggestion so the score matches
+          // what --write-config would produce.  Avoid spreading the full loaded config
+          // here because it may include defaultConfig placeholder entries that are not
+          // present in the actual file.
+          const existingConfigPath = path.join(targetDir, 'ui-drift.config.json');
+          let existingFileImports: string[] = [];
+          let existingFilePaths: string[] = [];
+          if (fs.existsSync(existingConfigPath)) {
+            try {
+              const raw = JSON.parse(fs.readFileSync(existingConfigPath, 'utf-8'));
+              existingFileImports = (raw.designSystemImports as string[] | undefined) ?? [];
+              existingFilePaths   = (raw.internalDSPaths   as string[] | undefined) ?? [];
+            } catch { /* leave empty on parse error */ }
+          }
+          const unionStrings = (a: string[], b: string[]) => {
+            const result = [...a];
+            for (const v of b) if (!result.includes(v)) result.push(v);
+            return result;
+          };
+          rerunConfig = {
+            ...config,
+            designSystemImports: unionStrings(existingFileImports, suggested.designSystemImports),
+            internalDSPaths:     unionStrings(existingFilePaths,   suggested.internalDSPaths),
+          };
         }
+
+        const rerun = await executeAudit(rerunConfig, allFiles, silent);
+        rerun.result.dsDetectionMode = 'driftsense';
 
         if (opts.scoreOnly) {
           console.log(rerun.result.healthScore);
@@ -218,7 +246,7 @@ async function run() {
       if (shouldPause) {
         if (!silent) printDriftSensePauseBlock(detection, suggested);
 
-        // --write-config in pause mode: write config then continue to full audit
+        // --write-config in pause mode: write config, reload from disk, run audit
         if (opts.writeConfig && suggested) {
           const applyResult = applySuggestedConfig(suggested, targetDir);
           if (!silent) {
@@ -228,8 +256,9 @@ async function run() {
             console.log(chalk.bold('  Running audit with saved config...\n'));
           }
 
-          const mergedConfig = mergeConfigInMemory(config, suggested);
-          const rerun = await executeAudit(mergedConfig, allFiles, silent);
+          // Reload from the written file so the score matches subsequent standard runs
+          const rerunConfig = loadConfig(opts.config, targetDir);
+          const rerun = await executeAudit(rerunConfig, allFiles, silent);
           rerun.result.dsDetectionMode = 'driftsense';
 
           if (opts.scoreOnly) {
