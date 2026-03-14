@@ -2,22 +2,22 @@ import chalk from 'chalk';
 import { AutoDetectResult, SuggestedConfig } from './types';
 
 /**
- * Prints the guided DS auto-detection results to the terminal.
+ * Prints DriftSense discovery results to the terminal.
  */
 export function printDsSuggestions(
   result: AutoDetectResult,
   suggested: SuggestedConfig | null
 ): void {
-  console.log(chalk.yellow('\n  ── Guided DS auto-detection ──────────────────────────────────\n'));
+  console.log(chalk.yellow('\n  ── DriftSense ────────────────────────────────────────────────\n'));
   console.log(chalk.yellow(`  Trigger: ${result.triggerReason}`));
   console.log('');
 
   if (result.candidates.length === 0) {
-    console.log(chalk.gray('  No design system candidates found.\n'));
+    console.log(chalk.gray('  DriftSense found no design system candidates.\n'));
     return;
   }
 
-  console.log(chalk.bold('  Detected possible internal design system / shared UI paths:\n'));
+  console.log(chalk.bold('  DriftSense detected possible internal design system / shared UI locations:\n'));
 
   const UI_KW = ['ui', 'components', 'design-system', 'designsystem', 'primitives', 'component-library'];
   const displayCandidates = result.candidates.filter(c => {
@@ -47,11 +47,11 @@ export function printDsSuggestions(
   }
 
   if (!suggested) {
-    console.log(chalk.gray('\n  Could not generate a config suggestion from these candidates.\n'));
+    console.log(chalk.gray('\n  DriftSense could not generate a config suggestion from these candidates.\n'));
     return;
   }
 
-  console.log(chalk.bold('\n  Suggested config:\n'));
+  console.log(chalk.bold('\n  DriftSense suggestion:\n'));
   console.log(chalk.gray('  ┌─────────────────────────────────────────────────────────────'));
   console.log(chalk.gray('  │') + chalk.white(' {'));
   if (suggested.designSystemImports.length > 0) {
@@ -77,15 +77,14 @@ export function printDsSuggestions(
 }
 
 /**
- * Prints a one-line hint about available flags when auto-detection ran but
- * the user hasn't yet acted on it.
+ * Prints a one-line hint about available DriftSense flags.
  */
 export function printDetectionHint(): void {
   console.log(
     chalk.gray('  Tip:') +
     chalk.white(' run with ') +
     chalk.cyan('--write-config') +
-    chalk.white(' to save this config, or ') +
+    chalk.white(' to save this DriftSense suggestion, or ') +
     chalk.cyan('--rerun-with-suggestion') +
     chalk.white(' to audit immediately with it.\n')
   );

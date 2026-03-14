@@ -118,4 +118,6 @@ export interface AuditResult {
   hardcodedColorCount: number;
   hardcodedSpacingCount: number;
   recommendations: string[];
+  /** Present when DriftSense ran during this audit */
+  dsDetectionMode?: 'driftsense';
 }

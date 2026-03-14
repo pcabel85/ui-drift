@@ -58,6 +58,9 @@ export function printTerminalReport(
   console.log('');
   console.log(chalk.gray(`  Target: ${chalk.white(path.resolve(targetDir))}`));
   console.log(chalk.gray(`  Files scanned: ${chalk.white(result.scannedFiles)}`));
+  if (result.dsDetectionMode === 'driftsense') {
+    console.log(chalk.gray(`  DS discovery: ${chalk.yellow('DriftSense')}`));
+  }
   console.log('');
   console.log(DIVIDER);
 

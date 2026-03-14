@@ -187,7 +187,7 @@ export function writeHtmlReport(result: AuditResult, outputPath: string, targetD
   <header>
     <div>
       <h1>🔍 Design System Audit</h1>
-      <div class="meta">${path.resolve(targetDir)} &nbsp;·&nbsp; ${result.scannedFiles} files &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+      <div class="meta">${path.resolve(targetDir)} &nbsp;·&nbsp; ${result.scannedFiles} files &nbsp;·&nbsp; ${new Date().toLocaleDateString()}${result.dsDetectionMode === 'driftsense' ? ' &nbsp;·&nbsp; DriftSense discovery' : ''}</div>
     </div>
   </header>
 

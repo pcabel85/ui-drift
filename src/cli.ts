@@ -36,11 +36,11 @@ program
   .option('--html [output]', 'Export HTML report (optionally specify output path)')
   .option('--json-only', 'Print raw JSON to stdout (no terminal report)')
   .option('--score-only', 'Print only the health score number (useful for CI)')
-  .option('--detect-ds', 'Force guided DS auto-detection even if trigger conditions are not met')
-  .option('--no-ds-detect', 'Disable guided DS auto-detection entirely')
-  .option('--write-config', 'Write suggested config to ui-drift.config.json in the target directory')
-  .option('--rerun-with-suggestion', 'Rerun the audit using the suggested config (in-memory, no file write)')
-  .option('--print-suggested-config', 'Print the suggested config block and exit')
+  .option('--detect-ds', 'Force DriftSense design system discovery even if normal trigger conditions are not met')
+  .option('--no-ds-detect', 'Disable DriftSense discovery entirely')
+  .option('--write-config', 'Write the DriftSense suggestion to ui-drift.config.json in the target directory')
+  .option('--rerun-with-suggestion', 'Rerun the audit using the DriftSense suggestion (in-memory, no file write)')
+  .option('--print-suggested-config', 'Print the DriftSense suggested config and exit')
   .parse(process.argv);
 
 const opts = program.opts();
@@ -188,10 +188,11 @@ async function run() {
       // --rerun-with-suggestion: re-audit with the suggested config applied in memory
       if (opts.rerunWithSuggestion && suggested) {
         if (!silent) {
-          console.log(chalk.bold('  Rerunning audit with suggested config...\n'));
+          console.log(chalk.bold('  Rerunning audit with DriftSense suggestion...\n'));
         }
         const mergedConfig = mergeConfigInMemory(config, suggested);
         const rerun = await executeAudit(mergedConfig, allFiles, silent);
+        rerun.result.dsDetectionMode = 'driftsense';
 
         if (opts.scoreOnly) {
           console.log(rerun.result.healthScore);
@@ -216,6 +217,8 @@ async function run() {
   }
 
   // ── Normal output path ───────────────────────────────────────────────────────
+
+  if (ranDetection) result.dsDetectionMode = 'driftsense';
 
   if (opts.scoreOnly) {
     console.log(result.healthScore);
