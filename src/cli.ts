@@ -21,7 +21,13 @@ import { AuditResult, DSAuditConfig } from './types';
 
 import { detectDesignSystemCandidates } from './autodetect/detectDesignSystemCandidates';
 import { generateSuggestedConfig } from './autodetect/generateSuggestedConfig';
-import { printDsSuggestions, printDetectionHint } from './autodetect/printDsSuggestions';
+import {
+  printDsSuggestions,
+  printDriftSensePauseBlock,
+  printDriftSenseMediumWarning,
+  printIgnoreDriftSenseWarning,
+  printDetectionHint,
+} from './autodetect/printDsSuggestions';
 import { applySuggestedConfig, mergeConfigInMemory } from './autodetect/applySuggestedConfig';
 
 const program = new Command();
@@ -41,6 +47,7 @@ program
   .option('--write-config', 'Write the DriftSense suggestion to ui-drift.config.json in the target directory')
   .option('--rerun-with-suggestion', 'Rerun the audit using the DriftSense suggestion (in-memory, no file write)')
   .option('--print-suggested-config', 'Print the DriftSense suggested config and exit')
+  .option('--ignore-driftsense', 'Continue the audit even when DriftSense detects high-confidence DS paths (score may be inaccurate)')
   .parse(process.argv);
 
 const opts = program.opts();
@@ -120,30 +127,28 @@ async function run() {
 
   if (!silent) console.log(chalk.gray('\n  Loading config...'));
 
-  let config = loadConfig(opts.config, targetDir);
+  const config = loadConfig(opts.config, targetDir);
 
   if (!silent) console.log(chalk.gray('  Scanning files...'));
 
   const allFiles = await findSourceFiles(targetDir, config.ignorePaths);
 
-  // ── First audit pass ─────────────────────────────────────────────────────────
+  // ── Initial scan: import counts only (cheap — needed for DriftSense trigger) ─
 
-  const { result, importUsage, inlineStyles, wrappers } =
-    await executeAudit(config, allFiles, silent);
+  if (!silent) {
+    console.log(chalk.gray(`  Found ${allFiles.length} source files`));
+    console.log(chalk.gray('  Scanning imports...\n'));
+  }
 
-  // ── Guided DS auto-detection ─────────────────────────────────────────────────
-
-  const approvedCount = Object.values(importUsage.approvedImportCounts).reduce((s, n) => s + n, 0);
-  const localCount    = Object.values(importUsage.localUiImportCounts).reduce((s, n) => s + n, 0);
-
-  // Build profiles once more for detection (already computed above; reuse via re-analysis)
-  // We need the raw profiles for candidate detection
   const profiles = allFiles
     .map((f) => analyzeFile(f, config.designSystemImports))
     .filter((p): p is NonNullable<typeof p> => p !== null);
 
-  let ranDetection = false;
-  let suggested = null as ReturnType<typeof generateSuggestedConfig>;
+  const quickImportUsage = analyzeImportUsage(profiles, config);
+  const approvedCount    = Object.values(quickImportUsage.approvedImportCounts).reduce((s, n) => s + n, 0);
+  const localCount       = Object.values(quickImportUsage.localUiImportCounts).reduce((s, n) => s + n, 0);
+
+  // ── DriftSense ───────────────────────────────────────────────────────────────
 
   if (autoDetectEnabled) {
     const detection = detectDesignSystemCandidates(
@@ -156,49 +161,48 @@ async function run() {
     );
 
     if (detection.triggerMet && detection.candidates.length > 0) {
-      ranDetection = true;
-      suggested = generateSuggestedConfig(detection.candidates);
+      const suggested    = generateSuggestedConfig(detection.candidates);
+      const topCandidate = detection.candidates[0];
 
-      // --print-suggested-config: print config block and exit
+      // Pause condition: high-confidence discovery with no approved imports
+      const shouldPause =
+        !opts.ignoreDriftsense &&
+        !opts.rerunWithSuggestion &&
+        approvedCount === 0 &&
+        localCount >= 25 &&
+        topCandidate?.confidence === 'high';
+
+      // ── --print-suggested-config: print and exit regardless of mode ────────
       if (opts.printSuggestedConfig) {
-        printDsSuggestions(detection, suggested);
+        printDriftSensePauseBlock(detection, suggested);
         return;
       }
 
-      if (!silent) {
-        printDsSuggestions(detection, suggested);
-      }
-
-      // --write-config: persist to disk
-      if (opts.writeConfig && suggested) {
-        const applyResult = applySuggestedConfig(suggested, targetDir);
-        if (!silent) {
-          if (applyResult.hadExistingConfig) {
-            console.log(chalk.green(`  ✓ Config merged into ${path.relative(process.cwd(), applyResult.configPath)}`));
-            for (const line of applyResult.diffLines) {
-              console.log(chalk.gray(`    ${line}`));
-            }
-          } else {
-            console.log(chalk.green(`  ✓ Config written to ${path.relative(process.cwd(), applyResult.configPath)}`));
-          }
-          console.log('');
-        }
-      }
-
-      // --rerun-with-suggestion: re-audit with the suggested config applied in memory
+      // ── --rerun-with-suggestion: bypass pause, apply suggestion, full audit ─
       if (opts.rerunWithSuggestion && suggested) {
         if (!silent) {
+          printDriftSensePauseBlock(detection, suggested);
           console.log(chalk.bold('  Rerunning audit with DriftSense suggestion...\n'));
         }
+
         const mergedConfig = mergeConfigInMemory(config, suggested);
         const rerun = await executeAudit(mergedConfig, allFiles, silent);
         rerun.result.dsDetectionMode = 'driftsense';
+
+        if (opts.writeConfig) {
+          const applyResult = applySuggestedConfig(suggested, targetDir);
+          if (!silent) {
+            const label = applyResult.hadExistingConfig ? 'Config merged into' : 'Config written to';
+            console.log(chalk.green(`  ✓ ${label} ${path.relative(process.cwd(), applyResult.configPath)}`));
+            for (const line of applyResult.diffLines) console.log(chalk.gray(`    ${line}`));
+            console.log('');
+          }
+        }
 
         if (opts.scoreOnly) {
           console.log(rerun.result.healthScore);
           process.exit(rerun.result.healthScore >= 70 ? 0 : 1);
         }
-
         if (opts.jsonOnly) {
           console.log(JSON.stringify(rerun.result, null, 2));
           return;
@@ -210,15 +214,63 @@ async function run() {
         return;
       }
 
+      // ── Pause: high confidence, no override ───────────────────────────────
+      if (shouldPause) {
+        if (opts.writeConfig && suggested) {
+          const applyResult = applySuggestedConfig(suggested, targetDir);
+          console.log(chalk.green(`  ✓ Config written to ${path.relative(process.cwd(), applyResult.configPath)}`));
+          console.log('');
+        }
+
+        printDriftSensePauseBlock(detection, suggested);
+
+        if (opts.json !== undefined || opts.html !== undefined) {
+          console.log(chalk.gray('  Audit paused due to DriftSense discovery.'));
+          console.log(chalk.gray('  Run again with --rerun-with-suggestion to generate a report.\n'));
+        }
+
+        process.exit(0);
+      }
+
+      // ── Non-paused: show full DriftSense block then continue ──────────────
+      if (!silent) {
+        printDsSuggestions(detection, suggested);
+
+        if (topCandidate?.confidence === 'medium') {
+          printDriftSenseMediumWarning();
+        }
+
+        if (opts.ignoreDriftsense && topCandidate?.confidence === 'high') {
+          printIgnoreDriftSenseWarning();
+        }
+      }
+
+      if (opts.writeConfig && suggested) {
+        const applyResult = applySuggestedConfig(suggested, targetDir);
+        if (!silent) {
+          const label = applyResult.hadExistingConfig ? 'Config merged into' : 'Config written to';
+          console.log(chalk.green(`  ✓ ${label} ${path.relative(process.cwd(), applyResult.configPath)}`));
+          for (const line of applyResult.diffLines) console.log(chalk.gray(`    ${line}`));
+          console.log('');
+        }
+      }
+
       if (!silent && !opts.writeConfig) {
         printDetectionHint();
       }
     }
   }
 
-  // ── Normal output path ───────────────────────────────────────────────────────
+  // ── Full audit ───────────────────────────────────────────────────────────────
 
-  if (ranDetection) result.dsDetectionMode = 'driftsense';
+  if (!silent) console.log(chalk.gray('  Analyzing AST...\n'));
+
+  const { result, importUsage, inlineStyles, wrappers } =
+    await executeAudit(config, allFiles, true /* suppress file count line — already printed */);
+
+  if (autoDetectEnabled && approvedCount === 0 && localCount >= 25) {
+    result.dsDetectionMode = 'driftsense';
+  }
 
   if (opts.scoreOnly) {
     console.log(result.healthScore);
