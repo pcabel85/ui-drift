@@ -216,17 +216,35 @@ async function run() {
 
       // ── Pause: high confidence, no override ───────────────────────────────
       if (shouldPause) {
+        if (!silent) printDriftSensePauseBlock(detection, suggested);
+
+        // --write-config in pause mode: write config then continue to full audit
         if (opts.writeConfig && suggested) {
           const applyResult = applySuggestedConfig(suggested, targetDir);
-          console.log(chalk.green(`  ✓ Config written to ${path.relative(process.cwd(), applyResult.configPath)}`));
+          if (!silent) {
+            const label = applyResult.hadExistingConfig ? 'Config merged into' : 'Config written to';
+            console.log(chalk.green(`  ✓ ${label} ${path.relative(process.cwd(), applyResult.configPath)}`));
+            console.log('');
+            console.log(chalk.bold('  Running audit with saved config...\n'));
+          }
+
+          const mergedConfig = mergeConfigInMemory(config, suggested);
+          const rerun = await executeAudit(mergedConfig, allFiles, silent);
+          rerun.result.dsDetectionMode = 'driftsense';
+
+          if (opts.scoreOnly) {
+            console.log(rerun.result.healthScore);
+            process.exit(rerun.result.healthScore >= 70 ? 0 : 1);
+          }
+          if (opts.jsonOnly) {
+            console.log(JSON.stringify(rerun.result, null, 2));
+            return;
+          }
+
+          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir);
+          await writeReports(rerun.result, targetDir);
           console.log('');
-        }
-
-        printDriftSensePauseBlock(detection, suggested);
-
-        if (opts.json !== undefined || opts.html !== undefined) {
-          console.log(chalk.gray('  Audit paused due to DriftSense discovery.'));
-          console.log(chalk.gray('  Run again with --rerun-with-suggestion to generate a report.\n'));
+          return;
         }
 
         process.exit(0);
