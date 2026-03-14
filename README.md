@@ -52,13 +52,28 @@ All findings roll up into a **health score from 0–100** across four weighted d
 
 ```
   ╔══════════════════════════════════════════╗
-  ║            ui-drift  v0.2                ║
+  ║                 ui-drift                 ║
+  ║    Design System Architecture Audit      ║
   ╚══════════════════════════════════════════╝
 
-  Target: /repos/my-app
+  Target:        /repos/my-app
   Files scanned: 214
+  Mode:          Standard Audit
 
-  ────────────────────────────────────────────
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Analysis Pipeline
+
+  ✓ Loading configuration
+  ✓ Discovering source files
+  ✓ Identifying React components
+  ✓ Analyzing imports
+  ✓ Detecting design system usage
+  ✓ Checking token compliance
+  ✓ Detecting duplicate component families
+  ✓ Calculating health score
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   📋 Audit Summary
 
@@ -66,6 +81,7 @@ All findings roll up into a **health score from 0–100** across four weighted d
   Duplicate Families   3
   Inline Style Usage   High
   Token Violations     Moderate
+  Discovery Mode       Standard
 
   ⚑ Top issue: High-severity duplicate component families
 

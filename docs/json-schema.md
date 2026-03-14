@@ -24,9 +24,12 @@ node dist/cli.js ./my-app --json-only
   "sxOverrideCount": 12,
   "hardcodedColorCount": 19,
   "hardcodedSpacingCount": 27,
-  "recommendations": [ ... ]
+  "recommendations": [ ... ],
+  "dsDetectionMode": "driftsense"
 }
 ```
+
+`dsDetectionMode` is optional. Present and set to `"driftsense"` when the audit was run (or rerun) with DriftSense discovery active. Absent on standard runs where an explicit `designSystemImports` config was provided.
 
 ---
 

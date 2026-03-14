@@ -103,8 +103,9 @@ DriftSense selects all high-confidence candidates plus up to two medium ones. Ma
 | `--detect-ds` | Force DriftSense discovery even if adoption is not zero |
 | `--no-ds-detect` | Disable DriftSense entirely |
 | `--write-config` | Write the DriftSense suggestion to `ui-drift.config.json`; merges with any existing config using union semantics |
-| `--rerun-with-suggestion` | Re-run the full audit in memory with the DriftSense suggestion applied, without writing to disk |
+| `--rerun-with-suggestion` | Re-run the full audit in memory with the DriftSense suggestion applied, without writing to disk; uses identical union merge behavior to `--write-config` so scores are consistent across both paths |
 | `--print-suggested-config` | Print the DriftSense suggested config and exit |
+| `--ignore-driftsense` | Continue the audit even when DriftSense detects high-confidence DS paths (score may be inaccurate) |
 
 ---
 
@@ -142,7 +143,7 @@ DriftSense selects all high-confidence candidates plus up to two medium ones. Ma
   Tip: run with --write-config to save this DriftSense suggestion, or --rerun-with-suggestion to audit immediately with it.
 ```
 
-Running with `--rerun-with-suggestion` takes plane from **37/100 Poor** (0% adoption) to **88/100 Excellent** (79% adoption) without any manual config.
+Running with `--rerun-with-suggestion` takes plane from **37/100 Poor** (0% adoption) to **86/100 Excellent** (79% adoption) without any manual config.
 
 ---
 

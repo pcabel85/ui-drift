@@ -22,7 +22,14 @@ src/
     recommendations.ts            # Actionable recommendation generator
   reporters/
     printTerminalReport.ts        # Chalk-formatted terminal output
+    printAnalysisPipeline.ts      # Analysis Pipeline progress block (✓/⚡ step list)
     writeJsonReport.ts            # JSON export + HTML report generation
+  autodetect/
+    detectDesignSystemCandidates.ts  # Scores import roots and filesystem paths as DS candidates
+    generateSuggestedConfig.ts       # Converts candidate list to a SuggestedConfig object
+    applySuggestedConfig.ts          # Writes/merges config to disk; buildRerunConfig for in-memory reruns
+    printDsSuggestions.ts            # Terminal output for DriftSense pause and non-paused blocks
+    types.ts                         # DriftSense-specific types (DetectionResult, SuggestedConfig, etc.)
   utils/
     normalizeComponentName.ts     # PascalCase to UI family noun mapping
     isComponentFile.ts            # Component file detection heuristic
@@ -40,6 +47,14 @@ findSourceFiles
 analyzeFile (per file)          ← @babel/parser AST
       │  produces ComponentProfile[]
       ▼
+analyzeImportUsage (quick pass)
+      │  approvedCount / localCount
+      ▼
+DriftSense gate (if autoDetectEnabled)
+      │  detectDesignSystemCandidates
+      │  ├─ triggerMet + high confidence → pause or rerun
+      │  └─ triggerMet + lower confidence → print suggestion, continue
+      ▼
 ┌──────────────────────────────────────────┐
 │  importUsageAnalyzer   → ImportUsageResult
 │  duplicateFamilyAnalyzer → DuplicateFinding[]
@@ -53,7 +68,7 @@ buildSummary         → AuditSummary
 generateRecommendations → string[]
       │
       ▼
-printTerminalReport / writeJsonReport / writeHtmlReport
+printTerminalReport (+ printAnalysisPipeline) / writeJsonReport / writeHtmlReport
 ```
 
 ---
