@@ -279,7 +279,8 @@ async function run() {
             return;
           }
 
-          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline);
+          // Header was already printed for the pause block — skip it for the continuation
+          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline, true);
           await writeReports(rerun.result, targetDir);
           console.log('');
           return;

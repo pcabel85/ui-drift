@@ -71,7 +71,8 @@ export function printTerminalReport(
   inlineStyles: InlineStyleResult,
   wrappers: WrapperAnalysisResult,
   targetDir: string,
-  pipeline?: PipelineState
+  pipeline?: PipelineState,
+  skipHeader?: boolean
 ): void {
   const { healthScore: score, scoreBreakdown: bd, summary } = result;
   const label = scoreLabel(score);
@@ -79,7 +80,9 @@ export function printTerminalReport(
 
   const isDriftSense = result.dsDetectionMode === 'driftsense';
 
-  printAuditHeader(targetDir, result.scannedFiles, isDriftSense);
+  if (!skipHeader) {
+    printAuditHeader(targetDir, result.scannedFiles, isDriftSense);
+  }
 
   if (pipeline) {
     printAnalysisPipeline(pipeline);
