@@ -52,7 +52,7 @@ All findings roll up into a **health score from 0–100** across four weighted d
 
 ```
   ╔══════════════════════════════════════════╗
-  ║            ui-drift  v0.1                ║
+  ║            ui-drift  v0.2                ║
   ╚══════════════════════════════════════════╝
 
   Target: /repos/my-app
@@ -194,7 +194,7 @@ node dist/cli.js test-projects/drifted-app
 
 ## Status
 
-Prototype (`v0.1`), currently intended for private feedback and early testing.
+Prototype (`v0.2`), currently intended for private feedback and early testing.
 
 ---
 

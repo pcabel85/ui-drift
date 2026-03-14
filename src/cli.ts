@@ -29,7 +29,7 @@ const program = new Command();
 program
   .name('ui-drift')
   .description('Design system health auditor for React/TypeScript codebases')
-  .version('0.1.0')
+  .version('0.2.0')
   .argument('[dir]', 'Path to the React project to audit', '.')
   .option('-c, --config <path>', 'Path to ui-drift.config.json')
   .option('--json [output]', 'Export JSON report (optionally specify output path)')

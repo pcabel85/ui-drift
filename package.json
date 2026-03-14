@@ -1,6 +1,6 @@
 {
   "name": "ui-drift",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Design system health auditor for React/TypeScript codebases",
   "bin": {
     "ui-drift": "./dist/cli.js"
