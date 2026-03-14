@@ -60,8 +60,44 @@ export function applySuggestedConfig(
 }
 
 /**
+ * Builds the in-memory rerun config for --rerun-with-suggestion.
+ *
+ * Mirrors applySuggestedConfig exactly: reads the raw config file from disk
+ * (if one exists) and unions its arrays with the suggestion.  This ensures
+ * the in-memory rerun produces the same effective config — and therefore the
+ * same score — as the --write-config path.
+ *
+ * When no config file is present both arrays start empty, so the result is
+ * simply the suggestion (defaultConfig placeholder entries are not included).
+ */
+export function buildRerunConfig(
+  config: DSAuditConfig,
+  suggested: SuggestedConfig,
+  targetDir: string
+): DSAuditConfig {
+  const configPath = path.join(targetDir, CONFIG_FILENAME);
+  let existingFileImports: string[] = [];
+  let existingFilePaths: string[] = [];
+
+  if (fs.existsSync(configPath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      existingFileImports = (raw.designSystemImports as string[] | undefined) ?? [];
+      existingFilePaths   = (raw.internalDSPaths   as string[] | undefined) ?? [];
+    } catch { /* treat as empty on parse error */ }
+  }
+
+  return {
+    ...config,
+    designSystemImports: unionStrings(existingFileImports, suggested.designSystemImports),
+    internalDSPaths:     unionStrings(existingFilePaths,   suggested.internalDSPaths),
+  };
+}
+
+/**
  * Produces a merged DSAuditConfig by union-merging the suggested config arrays
  * into the existing config. Does NOT write to disk.
+ * @deprecated Use buildRerunConfig for the --rerun-with-suggestion path.
  */
 export function mergeConfigInMemory(
   base: DSAuditConfig,
@@ -74,7 +110,7 @@ export function mergeConfigInMemory(
   };
 }
 
-function unionStrings(a: string[], b: string[]): string[] {
+export function unionStrings(a: string[], b: string[]): string[] {
   const result = [...a];
   for (const v of b) {
     if (!result.includes(v)) result.push(v);

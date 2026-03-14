@@ -28,7 +28,7 @@ import {
   printIgnoreDriftSenseWarning,
   printDetectionHint,
 } from './autodetect/printDsSuggestions';
-import { applySuggestedConfig } from './autodetect/applySuggestedConfig';
+import { applySuggestedConfig, buildRerunConfig } from './autodetect/applySuggestedConfig';
 
 const program = new Command();
 
@@ -197,31 +197,7 @@ async function run() {
           }
           rerunConfig = loadConfig(opts.config, targetDir);
         } else {
-          // In-memory only: mirror applySuggestedConfig behaviour — union the existing
-          // config file's entries (if any) with the suggestion so the score matches
-          // what --write-config would produce.  Avoid spreading the full loaded config
-          // here because it may include defaultConfig placeholder entries that are not
-          // present in the actual file.
-          const existingConfigPath = path.join(targetDir, 'ui-drift.config.json');
-          let existingFileImports: string[] = [];
-          let existingFilePaths: string[] = [];
-          if (fs.existsSync(existingConfigPath)) {
-            try {
-              const raw = JSON.parse(fs.readFileSync(existingConfigPath, 'utf-8'));
-              existingFileImports = (raw.designSystemImports as string[] | undefined) ?? [];
-              existingFilePaths   = (raw.internalDSPaths   as string[] | undefined) ?? [];
-            } catch { /* leave empty on parse error */ }
-          }
-          const unionStrings = (a: string[], b: string[]) => {
-            const result = [...a];
-            for (const v of b) if (!result.includes(v)) result.push(v);
-            return result;
-          };
-          rerunConfig = {
-            ...config,
-            designSystemImports: unionStrings(existingFileImports, suggested.designSystemImports),
-            internalDSPaths:     unionStrings(existingFilePaths,   suggested.internalDSPaths),
-          };
+          rerunConfig = buildRerunConfig(config, suggested, targetDir);
         }
 
         const rerun = await executeAudit(rerunConfig, allFiles, silent);
