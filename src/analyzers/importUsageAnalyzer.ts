@@ -9,6 +9,20 @@ export interface ImportUsageResult {
   adoptionRatio: number;
 }
 
+/**
+ * Returns true only when `segment` appears as a proper path segment within
+ * `normalizedPath` — i.e. bounded by `/` or string boundaries. Prevents
+ * `"components"` from matching `"_components"` or `"some-components"`.
+ */
+function matchesPathSegment(normalizedPath: string, segment: string): boolean {
+  return (
+    normalizedPath === segment ||
+    normalizedPath.startsWith(`${segment}/`) ||
+    normalizedPath.includes(`/${segment}/`) ||
+    normalizedPath.endsWith(`/${segment}`)
+  );
+}
+
 export function analyzeImportUsage(
   profiles: ComponentProfile[],
   config: DSAuditConfig
@@ -21,7 +35,7 @@ export function analyzeImportUsage(
     // Files that live inside an internalDSPaths directory are part of the DS itself —
     // skip their imports entirely to avoid inflating local UI counts.
     const normalizedFilePath = profile.filePath.replace(/\\/g, '/');
-    if (internalDSPaths.some((p) => normalizedFilePath.includes(p))) continue;
+    if (internalDSPaths.some((p) => matchesPathSegment(normalizedFilePath, p))) continue;
 
     for (const importInfo of profile.imports) {
       const src = importInfo.source;
@@ -47,7 +61,7 @@ export function analyzeImportUsage(
 
       // Check if this import resolves through an internalDSPaths segment
       const normalizedSrc = src.replace(/\\/g, '/');
-      const matchedInternal = internalDSPaths.find((p) => normalizedSrc.includes(p));
+      const matchedInternal = internalDSPaths.find((p) => matchesPathSegment(normalizedSrc, p));
       if (matchedInternal) {
         for (const specifier of importInfo.specifiers) {
           if (specifier === 'default' || specifier === '*') {
