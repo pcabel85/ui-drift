@@ -5,8 +5,33 @@ import { ImportUsageResult } from '../analyzers/importUsageAnalyzer';
 import { InlineStyleResult } from '../analyzers/inlineStyleAnalyzer';
 import { WrapperAnalysisResult } from '../analyzers/wrapperAnalyzer';
 import { scoreLabel, scoreColor } from '../scoring/calculateHealthScore';
+import { PipelineState, printAnalysisPipeline } from './printAnalysisPipeline';
 
 const DIVIDER = chalk.gray('─'.repeat(60));
+
+// ── Shared header ─────────────────────────────────────────────────────────────
+
+/**
+ * Prints the ui-drift identity box and per-run metadata (target, files, mode).
+ * Called by printTerminalReport for completed runs, and directly by the CLI
+ * for runs that pause before the full report (e.g. DriftSense pause).
+ */
+export function printAuditHeader(
+  targetDir: string,
+  fileCount: number,
+  isDriftSense: boolean
+): void {
+  console.log('');
+  console.log(chalk.bold.blue('  ╔══════════════════════════════════════════╗'));
+  console.log(chalk.bold.blue('  ║                 ui-drift                 ║'));
+  console.log(chalk.bold.blue('  ║    Design System Architecture Audit      ║'));
+  console.log(chalk.bold.blue('  ╚══════════════════════════════════════════╝'));
+  console.log('');
+  console.log(chalk.gray(`  Target:        ${chalk.white(path.resolve(targetDir))}`));
+  console.log(chalk.gray(`  Files scanned: ${chalk.white(fileCount)}`));
+  console.log(chalk.gray(`  Mode:          ${isDriftSense ? chalk.yellow('DriftSense Discovery') : chalk.white('Standard Audit')}`));
+  console.log('');
+}
 
 function scoreBar(score: number): string {
   const filled = Math.round(score / 5);
@@ -45,7 +70,8 @@ export function printTerminalReport(
   importUsage: ImportUsageResult,
   inlineStyles: InlineStyleResult,
   wrappers: WrapperAnalysisResult,
-  targetDir: string
+  targetDir: string,
+  pipeline?: PipelineState
 ): void {
   const { healthScore: score, scoreBreakdown: bd, summary } = result;
   const label = scoreLabel(score);
@@ -53,17 +79,14 @@ export function printTerminalReport(
 
   const isDriftSense = result.dsDetectionMode === 'driftsense';
 
-  console.log('');
-  console.log(chalk.bold.blue('  ╔══════════════════════════════════════════╗'));
-  console.log(chalk.bold.blue('  ║                 ui-drift                 ║'));
-  console.log(chalk.bold.blue('  ║    Design System Architecture Audit      ║'));
-  console.log(chalk.bold.blue('  ╚══════════════════════════════════════════╝'));
-  console.log('');
-  console.log(chalk.gray(`  Target:        ${chalk.white(path.resolve(targetDir))}`));
-  console.log(chalk.gray(`  Files scanned: ${chalk.white(result.scannedFiles)}`));
-  console.log(chalk.gray(`  Mode:          ${isDriftSense ? chalk.yellow('DriftSense Discovery') : chalk.white('Standard Audit')}`));
-  console.log('');
-  console.log(DIVIDER);
+  printAuditHeader(targetDir, result.scannedFiles, isDriftSense);
+
+  if (pipeline) {
+    printAnalysisPipeline(pipeline);
+  } else {
+    console.log(DIVIDER);
+    console.log('');
+  }
 
   // ── Quick Summary ─────────────────────────────────────────────────────────────
   console.log('');

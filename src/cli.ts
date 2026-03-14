@@ -15,7 +15,7 @@ import { analyzeInlineStyles } from './analyzers/inlineStyleAnalyzer';
 import { analyzeWrappers } from './analyzers/wrapperAnalyzer';
 import { calculateHealthScore, buildSummary } from './scoring/calculateHealthScore';
 import { generateRecommendations } from './scoring/recommendations';
-import { printTerminalReport } from './reporters/printTerminalReport';
+import { printTerminalReport, printAuditHeader } from './reporters/printTerminalReport';
 import { writeJsonReport, writeHtmlReport } from './reporters/writeJsonReport';
 import { AuditResult, DSAuditConfig } from './types';
 
@@ -29,6 +29,11 @@ import {
   printDetectionHint,
 } from './autodetect/printDsSuggestions';
 import { applySuggestedConfig, buildRerunConfig } from './autodetect/applySuggestedConfig';
+import {
+  defaultPipelineState,
+  printAnalysisPipeline,
+  PipelineState,
+} from './reporters/printAnalysisPipeline';
 
 const program = new Command();
 
@@ -63,20 +68,12 @@ const forceDetect: boolean = !!opts.detectDs;
 async function executeAudit(
   config: DSAuditConfig,
   allFiles: string[],
-  silent: boolean = false
 ): Promise<{
   result: AuditResult;
   importUsage: ReturnType<typeof analyzeImportUsage>;
   inlineStyles: ReturnType<typeof analyzeInlineStyles>;
   wrappers: ReturnType<typeof analyzeWrappers>;
 }> {
-  const componentFiles = allFiles.filter(isComponentFile);
-
-  if (!silent) {
-    console.log(chalk.gray(`  Found ${allFiles.length} source files, ${componentFiles.length} component files`));
-    console.log(chalk.gray('  Analyzing AST...\n'));
-  }
-
   const profiles = allFiles
     .map((f) => analyzeFile(f, config.designSystemImports))
     .filter((p): p is NonNullable<typeof p> => p !== null);
@@ -115,6 +112,15 @@ async function executeAudit(
   return { result, importUsage, inlineStyles, wrappers };
 }
 
+// ── Mark post-executeAudit phases complete ────────────────────────────────────
+
+function markAuditComplete(pipeline: PipelineState): void {
+  pipeline.dsUsageChecked        = true;
+  pipeline.tokenComplianceChecked = true;
+  pipeline.duplicatesChecked      = true;
+  pipeline.healthScoreCalculated  = true;
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function run() {
@@ -125,28 +131,33 @@ async function run() {
 
   const silent = !!(opts.jsonOnly || opts.scoreOnly);
 
-  if (!silent) console.log(chalk.gray('\n  Loading config...'));
+  // ── Pipeline state (built up as phases complete) ──────────────────────────
+
+  const pipeline = defaultPipelineState();
+
+  // ── Load config ───────────────────────────────────────────────────────────
 
   const config = loadConfig(opts.config, targetDir);
+  pipeline.configLoaded = true;
 
-  if (!silent) console.log(chalk.gray('  Scanning files...'));
+  // ── Discover files ────────────────────────────────────────────────────────
 
   const allFiles = await findSourceFiles(targetDir, config.ignorePaths);
+  pipeline.filesDiscovered = allFiles.length;
 
-  // ── Initial scan: import counts only (cheap — needed for DriftSense trigger) ─
-
-  if (!silent) {
-    console.log(chalk.gray(`  Found ${allFiles.length} source files`));
-    console.log(chalk.gray('  Scanning imports...\n'));
-  }
+  // ── Initial scan: AST + import analysis (needed for DriftSense gating) ───
 
   const profiles = allFiles
     .map((f) => analyzeFile(f, config.designSystemImports))
     .filter((p): p is NonNullable<typeof p> => p !== null);
 
+  pipeline.componentsIdentified = true;
+
   const quickImportUsage = analyzeImportUsage(profiles, config);
-  const approvedCount    = Object.values(quickImportUsage.approvedImportCounts).reduce((s, n) => s + n, 0);
-  const localCount       = Object.values(quickImportUsage.localUiImportCounts).reduce((s, n) => s + n, 0);
+  pipeline.importsAnalyzed = true;
+
+  const approvedCount = Object.values(quickImportUsage.approvedImportCounts).reduce((s, n) => s + n, 0);
+  const localCount    = Object.values(quickImportUsage.localUiImportCounts).reduce((s, n) => s + n, 0);
 
   // ── DriftSense ───────────────────────────────────────────────────────────────
 
@@ -180,6 +191,9 @@ async function run() {
 
       // ── --rerun-with-suggestion: bypass pause, apply suggestion, full audit ─
       if (opts.rerunWithSuggestion && suggested) {
+        pipeline.driftSenseTriggered = true;
+        pipeline.driftSenseMode      = 'rerun';
+
         if (!silent) {
           printDriftSensePauseBlock(detection, suggested);
           console.log(chalk.bold('  Rerunning audit with DriftSense suggestion...\n'));
@@ -200,8 +214,9 @@ async function run() {
           rerunConfig = buildRerunConfig(config, suggested, targetDir);
         }
 
-        const rerun = await executeAudit(rerunConfig, allFiles, silent);
+        const rerun = await executeAudit(rerunConfig, allFiles);
         rerun.result.dsDetectionMode = 'driftsense';
+        markAuditComplete(pipeline);
 
         if (opts.scoreOnly) {
           console.log(rerun.result.healthScore);
@@ -212,7 +227,7 @@ async function run() {
           return;
         }
 
-        printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir);
+        printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline);
         await writeReports(rerun.result, targetDir);
         console.log('');
         return;
@@ -220,7 +235,19 @@ async function run() {
 
       // ── Pause: high confidence, no override ───────────────────────────────
       if (shouldPause) {
-        if (!silent) printDriftSensePauseBlock(detection, suggested);
+        pipeline.driftSenseTriggered  = true;
+        pipeline.driftSenseMode       = 'paused';
+        pipeline.driftSenseDetails    = [
+          'Low design system adoption detected',
+          'Shared UI layer candidates found',
+        ];
+        pipeline.auditPaused = true;
+
+        if (!silent) {
+          printAuditHeader(targetDir, allFiles.length, false);
+          printAnalysisPipeline(pipeline);
+          printDriftSensePauseBlock(detection, suggested);
+        }
 
         // --write-config in pause mode: write config, reload from disk, run audit
         if (opts.writeConfig && suggested) {
@@ -234,8 +261,14 @@ async function run() {
 
           // Reload from the written file so the score matches subsequent standard runs
           const rerunConfig = loadConfig(opts.config, targetDir);
-          const rerun = await executeAudit(rerunConfig, allFiles, silent);
+
+          // Reset pipeline state for the continuation run
+          pipeline.driftSenseMode       = 'nonpaused';
+          pipeline.auditPaused          = false;
+
+          const rerun = await executeAudit(rerunConfig, allFiles);
           rerun.result.dsDetectionMode = 'driftsense';
+          markAuditComplete(pipeline);
 
           if (opts.scoreOnly) {
             console.log(rerun.result.healthScore);
@@ -246,7 +279,7 @@ async function run() {
             return;
           }
 
-          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir);
+          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline);
           await writeReports(rerun.result, targetDir);
           console.log('');
           return;
@@ -256,6 +289,12 @@ async function run() {
       }
 
       // ── Non-paused: show full DriftSense block then continue ──────────────
+      pipeline.driftSenseTriggered = true;
+      pipeline.driftSenseMode      = 'nonpaused';
+      pipeline.driftSenseDetails   = [
+        `${detection.candidates.length} candidate${detection.candidates.length !== 1 ? 's' : ''} found`,
+      ];
+
       if (!silent) {
         printDsSuggestions(detection, suggested);
 
@@ -286,14 +325,14 @@ async function run() {
 
   // ── Full audit ───────────────────────────────────────────────────────────────
 
-  if (!silent) console.log(chalk.gray('  Analyzing AST...\n'));
-
   const { result, importUsage, inlineStyles, wrappers } =
-    await executeAudit(config, allFiles, true /* suppress file count line — already printed */);
+    await executeAudit(config, allFiles);
 
   if (autoDetectEnabled && approvedCount === 0 && localCount >= 25) {
     result.dsDetectionMode = 'driftsense';
   }
+
+  markAuditComplete(pipeline);
 
   if (opts.scoreOnly) {
     console.log(result.healthScore);
@@ -305,7 +344,7 @@ async function run() {
     return;
   }
 
-  printTerminalReport(result, importUsage, inlineStyles, wrappers, targetDir);
+  printTerminalReport(result, importUsage, inlineStyles, wrappers, targetDir, pipeline);
   await writeReports(result, targetDir);
   console.log('');
 }

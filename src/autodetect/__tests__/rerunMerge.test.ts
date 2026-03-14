@@ -170,7 +170,7 @@ describe('score equivalence – persisted vs in-memory rerun', () => {
       totalApproved:        importUsage.totalApproved,
       totalLocal:           importUsage.totalLocal,
       duplicateFamilyCount: duplicateFindings.length,
-      wrapperCount:         wrappers.length,
+      wrapperCount:         wrappers.wrappers.length,
     };
   }
 
