@@ -243,20 +243,13 @@ async function run() {
         ];
         pipeline.auditPaused = true;
 
-        if (!silent) {
-          printAuditHeader(targetDir, allFiles.length, false);
-          printAnalysisPipeline(pipeline);
-          printDriftSensePauseBlock(detection, suggested);
-        }
-
-        // --write-config in pause mode: write config, reload from disk, run audit
+        // --write-config: skip pause UI entirely and run the audit immediately
         if (opts.writeConfig && suggested) {
           const applyResult = applySuggestedConfig(suggested, targetDir);
           if (!silent) {
             const label = applyResult.hadExistingConfig ? 'Config merged into' : 'Config written to';
             console.log(chalk.green(`  ✓ ${label} ${path.relative(process.cwd(), applyResult.configPath)}`));
             console.log('');
-            console.log(chalk.bold('  Running audit with saved config...\n'));
           }
 
           // Reload from the written file so the score matches subsequent standard runs
@@ -279,11 +272,17 @@ async function run() {
             return;
           }
 
-          // Header was already printed for the pause block — skip it for the continuation
-          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline, true);
+          printTerminalReport(rerun.result, rerun.importUsage, rerun.inlineStyles, rerun.wrappers, targetDir, pipeline);
           await writeReports(rerun.result, targetDir);
           console.log('');
           return;
+        }
+
+        // No --write-config: show the pause UI and stop
+        if (!silent) {
+          printAuditHeader(targetDir, allFiles.length, false);
+          printAnalysisPipeline(pipeline);
+          printDriftSensePauseBlock(detection, suggested);
         }
 
         process.exit(0);
