@@ -125,7 +125,7 @@ All findings roll up into a **health score from 0–100** across four weighted d
 
 ## HTML report example
 
-ui-drift can also export a shareable HTML report for architecture reviews or CI artifacts.
+ui-drift can export a shareable HTML report for architecture reviews or CI artifacts.
 
 ![ui-drift HTML report](docs/html-report-example.png)
 
@@ -149,7 +149,7 @@ Place `ui-drift.config.json` in the root of the project you are auditing:
 
 All fields are optional. See [docs/config.md](docs/config.md) for the full reference including monorepo support (`internalDSPaths`), penalty tuning, and score weight customisation.
 
-### DriftSense
+### DriftSense auto-detection
 
 DriftSense is ui-drift's automatic design system discovery engine. If unusually low DS adoption is detected on the first run, DriftSense scans the repository for likely shared UI layers and suggests a configuration automatically.
 
@@ -209,7 +209,7 @@ See the quick tester guide: [docs/tester-checklist.md](docs/tester-checklist.md)
 
 ## Roadmap
 
-- [ ] CI mode with exit code based on score delta from baseline
+- [ ] CI mode with score regression detection
 - [ ] GitHub Action
 - [ ] Trend reports over time
 - [ ] Rule packs for Chakra UI, Tailwind, and custom design systems
@@ -219,7 +219,7 @@ See the quick tester guide: [docs/tester-checklist.md](docs/tester-checklist.md)
 
 ## Status
 
-Prototype (`v0.2`), currently intended for private feedback and early testing.
+Experimental (v0.2) — early feedback welcome.
 
 ---
 
