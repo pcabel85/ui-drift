@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DSAuditConfig } from '../types';
 import { SuggestedConfig, ApplyConfigResult } from './types';
+import { normalizeAuditConfig } from '../config/loadConfig';
 
 const CONFIG_FILENAME = 'ui-drift.config.json';
 
@@ -62,36 +63,50 @@ export function applySuggestedConfig(
 /**
  * Builds the in-memory rerun config for --rerun-with-suggestion.
  *
- * Mirrors applySuggestedConfig exactly: reads the raw config file from disk
- * (if one exists) and unions its arrays with the suggestion.  This ensures
- * the in-memory rerun produces the same effective config — and therefore the
- * same score — as the --write-config path.
+ * Produces the exact same effective config as the applySuggestedConfig + loadConfig
+ * path by following the same two steps:
  *
- * When no config file is present both arrays start empty, so the result is
- * simply the suggestion (defaultConfig placeholder entries are not included).
+ *  1. Read the raw config file from targetDir (if one exists) and union its
+ *     arrays with the suggestion — identical to what applySuggestedConfig writes.
+ *  2. Pass the resulting raw object through normalizeAuditConfig (deepMerge with
+ *     defaultConfig) — identical to what loadConfig does after reading the file.
+ *
+ * This guarantees the invariant:
+ *   audit(buildRerunConfig(...)) === audit(applySuggestedConfig(...) + loadConfig(...))
+ *
+ * @param _config - Preserved for API compatibility. Not used internally: the
+ *   effective config is always derived from the targetDir's on-disk file plus
+ *   defaultConfig, mirroring the applySuggestedConfig + loadConfig path.
+ *   (The previous implementation spread `...config` here, which caused score
+ *   divergence when `config` was loaded from a CWD that had its own
+ *   ui-drift.config.json with non-default penalties or weights.)
  */
 export function buildRerunConfig(
-  config: DSAuditConfig,
+  _config: DSAuditConfig,
   suggested: SuggestedConfig,
   targetDir: string
 ): DSAuditConfig {
   const configPath = path.join(targetDir, CONFIG_FILENAME);
-  let existingFileImports: string[] = [];
-  let existingFilePaths: string[] = [];
+  let existingFileConfig: Partial<DSAuditConfig> = {};
 
   if (fs.existsSync(configPath)) {
     try {
-      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      existingFileImports = (raw.designSystemImports as string[] | undefined) ?? [];
-      existingFilePaths   = (raw.internalDSPaths   as string[] | undefined) ?? [];
+      existingFileConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     } catch { /* treat as empty on parse error */ }
   }
 
-  return {
-    ...config,
+  const existingFileImports = (existingFileConfig.designSystemImports as string[] | undefined) ?? [];
+  const existingFilePaths   = (existingFileConfig.internalDSPaths   as string[] | undefined) ?? [];
+
+  // Build the same raw object that applySuggestedConfig would write to disk,
+  // then normalize identically to loadConfig (deepMerge with defaultConfig).
+  const rawConfig: Partial<DSAuditConfig> = {
+    ...existingFileConfig,
     designSystemImports: unionStrings(existingFileImports, suggested.designSystemImports),
     internalDSPaths:     unionStrings(existingFilePaths,   suggested.internalDSPaths),
   };
+
+  return normalizeAuditConfig(rawConfig);
 }
 
 /**

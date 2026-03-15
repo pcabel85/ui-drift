@@ -93,7 +93,7 @@ describe('buildRerunConfig – existing config file', () => {
     expect(result.internalDSPaths.filter((s) => s === 'packages/ui').length).toBe(1);
   });
 
-  it('preserves other config fields (penalties, scoreWeights) from the base config', () => {
+  it('preserves other config fields (penalties, scoreWeights) from defaultConfig when not present in the file', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'ui-drift.config.json'),
       JSON.stringify({ designSystemImports: ['@acme/ui'] })
@@ -104,6 +104,29 @@ describe('buildRerunConfig – existing config file', () => {
 
     expect(result.penalties).toEqual(BASE_CONFIG.penalties);
     expect(result.scoreWeights).toEqual(BASE_CONFIG.scoreWeights);
+  });
+
+  it('uses defaultConfig as base (ignores non-default values in the config parameter)', () => {
+    // This covers the divergence scenario: config parameter loaded from a CWD
+    // that has a ui-drift.config.json with custom penalties, while the targetDir
+    // has no config file. The old implementation spread `...config` and inherited
+    // those custom penalty values, diverging from applySuggestedConfig + loadConfig.
+    fs.writeFileSync(
+      path.join(tmpDir, 'ui-drift.config.json'),
+      JSON.stringify({ designSystemImports: ['@acme/ui'] })
+    );
+
+    const configWithCustomPenalties = {
+      ...defaultConfig,
+      penalties: { ...defaultConfig.penalties, duplicateHigh: 5 },
+    };
+
+    const suggestion = makeSuggestion(['@acme/icons']);
+    const result = buildRerunConfig(configWithCustomPenalties, suggestion, tmpDir);
+
+    // Must use defaultConfig.penalties (from normalizeAuditConfig), not the custom ones
+    expect(result.penalties).toEqual(defaultConfig.penalties);
+    expect(result.penalties.duplicateHigh).toBe(defaultConfig.penalties.duplicateHigh);
   });
 });
 
@@ -141,6 +164,22 @@ describe('buildRerunConfig – no existing config file', () => {
     // defaultConfig carries placeholder entries; they must not bleed into the rerun
     expect(result.designSystemImports).not.toContain('@mui/material');
     expect(result.designSystemImports).not.toContain('@company/ui');
+  });
+
+  it('uses defaultConfig as base (ignores non-default values in the config parameter) when no file present', () => {
+    // Core divergence scenario: config loaded from CWD with custom penalties,
+    // targetDir has no config file. Old code: `{ ...config, ... }` inherited
+    // those custom values. New code: normalizeAuditConfig always uses defaultConfig.
+    const configWithCustomPenalties = {
+      ...defaultConfig,
+      penalties: { ...defaultConfig.penalties, duplicateHigh: 5 },
+    };
+
+    const suggestion = makeSuggestion(['@acme/design-system']);
+    const result = buildRerunConfig(configWithCustomPenalties, suggestion, tmpDir);
+
+    expect(result.penalties).toEqual(defaultConfig.penalties);
+    expect(result.penalties.duplicateHigh).toBe(defaultConfig.penalties.duplicateHigh);
   });
 });
 

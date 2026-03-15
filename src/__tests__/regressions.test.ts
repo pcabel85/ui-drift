@@ -1,5 +1,5 @@
 /**
- * Regression tests for three bugs found during the multi-repo audit sweep.
+ * Regression tests for four bugs found during the multi-repo audit sweep.
  *
  * Bug 1 — `--json-only` / `--score-only` + DriftSense pause emitted no output.
  *   shouldPause did not check !silent, so those modes hit process.exit(0) and
@@ -14,6 +14,13 @@
  *   finalScore was Math.round(rawSum) but each breakdown contribution was
  *   Math.round(rawContribution) independently — double-rounding. Fix: round
  *   each contribution once and sum the rounded values for healthScore.
+ *
+ * Bug 4 — --rerun-with-suggestion produced a different score than --write-config
+ *   followed by a fresh run. buildRerunConfig spread `...config` (which could be
+ *   loaded from a CWD ui-drift.config.json with custom penalties/weights), while
+ *   applySuggestedConfig + loadConfig always used defaultConfig as the base.
+ *   Fix: buildRerunConfig now calls normalizeAuditConfig (deepMerge with
+ *   defaultConfig) on the targetDir's raw file, mirroring the persisted path.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -201,6 +208,92 @@ describe('Bug 2 – non-paused --write-config must audit with the written config
 
     // Removing designSystemImports should change the adoption score
     expect(withMuiResult.score).not.toBe(withoutMuiResult.score);
+  });
+});
+
+// ── Bug 4: --rerun-with-suggestion must match --write-config → fresh run ───────
+
+describe('Bug 4 – buildRerunConfig must produce the same config as applySuggestedConfig + loadConfig', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-drift-reg4-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('buildRerunConfig ignores non-default values in the config parameter (no pre-existing file)', () => {
+    // Simulates: user runs `ui-drift /path/to/project` from a CWD that has a
+    // ui-drift.config.json with custom penalties. loadConfig finds the CWD file
+    // and returns a config with those custom values. The old buildRerunConfig
+    // spread `...config`, inheriting them. applySuggestedConfig + loadConfig did
+    // not — it wrote only designSystemImports/internalDSPaths, so loadConfig
+    // fell back to defaultConfig for everything else. Score diverged.
+    const configFromCwd = {
+      ...defaultConfig,
+      penalties: { ...defaultConfig.penalties, duplicateHigh: 5 },
+    };
+
+    const suggestion = {
+      designSystemImports: ['@acme/design-system'],
+      internalDSPaths: [] as string[],
+    };
+
+    const rerunConfig = buildRerunConfig(configFromCwd, suggestion, tmpDir);
+
+    // normalizeAuditConfig must use defaultConfig as the base, not configFromCwd
+    expect(rerunConfig.penalties).toEqual(defaultConfig.penalties);
+    expect(rerunConfig.penalties.duplicateHigh).toBe(25);
+  });
+
+  it('produces identical configs for both execution paths when no pre-existing file', async () => {
+    const configFromCwd = {
+      ...defaultConfig,
+      penalties: { ...defaultConfig.penalties, duplicateHigh: 5 },
+    };
+
+    const suggestion = {
+      designSystemImports: ['@acme/design-system'],
+      internalDSPaths: ['packages/ui'],
+    };
+
+    // Persisted path
+    applySuggestedConfig(suggestion, tmpDir);
+    const persistedConfig = loadConfig(undefined, tmpDir);
+
+    // In-memory rerun path (config parameter carries CWD's custom penalties)
+    const rerunConfig = buildRerunConfig(configFromCwd, suggestion, tmpDir);
+
+    expect(rerunConfig.designSystemImports.sort()).toEqual(persistedConfig.designSystemImports.sort());
+    expect(rerunConfig.internalDSPaths.sort()).toEqual(persistedConfig.internalDSPaths.sort());
+    expect(rerunConfig.penalties).toEqual(persistedConfig.penalties);
+    expect(rerunConfig.scoreWeights).toEqual(persistedConfig.scoreWeights);
+    expect(rerunConfig.familyKeywords.sort()).toEqual(persistedConfig.familyKeywords.sort());
+  });
+
+  it('produces identical audit scores for both execution paths', async () => {
+    const configFromCwd = {
+      ...defaultConfig,
+      penalties: { ...defaultConfig.penalties, duplicateHigh: 5 },
+    };
+
+    const suggestion = {
+      designSystemImports: ['@acme/design-system'],
+      internalDSPaths: [] as string[],
+    };
+
+    applySuggestedConfig(suggestion, tmpDir);
+    const persistedConfig = loadConfig(undefined, tmpDir);
+    const rerunConfig     = buildRerunConfig(configFromCwd, suggestion, tmpDir);
+
+    const [persistedResult, rerunResult] = await Promise.all([
+      runAuditPipeline(persistedConfig, HEALTHY),
+      runAuditPipeline(rerunConfig, HEALTHY),
+    ]);
+
+    expect(rerunResult.score).toBe(persistedResult.score);
   });
 });
 

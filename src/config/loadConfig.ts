@@ -16,7 +16,7 @@ export function loadConfig(configPath?: string, targetDir?: string): DSAuditConf
       try {
         const raw = fs.readFileSync(candidate, 'utf-8');
         const parsed = JSON.parse(raw);
-        return deepMerge(defaultConfig, parsed);
+        return normalizeAuditConfig(parsed);
       } catch (err) {
         console.warn(`⚠ Could not parse config at ${candidate}: ${(err as Error).message}`);
       }
@@ -24,6 +24,18 @@ export function loadConfig(configPath?: string, targetDir?: string): DSAuditConf
   }
 
   return { ...defaultConfig };
+}
+
+/**
+ * Applies defaultConfig as the base and deep-merges raw config values on top.
+ *
+ * Both loadConfig and buildRerunConfig call this function so that both execution
+ * paths — persisted (applySuggestedConfig → loadConfig) and in-memory
+ * (buildRerunConfig) — go through identical normalization and always produce
+ * structurally equivalent configs.
+ */
+export function normalizeAuditConfig(raw: Partial<DSAuditConfig>): DSAuditConfig {
+  return deepMerge(defaultConfig, raw);
 }
 
 function deepMerge<T extends Record<string, any>>(base: T, override: Partial<T>): T {
