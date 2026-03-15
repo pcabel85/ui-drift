@@ -178,6 +178,7 @@ See [docs/driftsense.md](docs/driftsense.md) for the full explanation.
 | [docs/architecture.md](docs/architecture.md) | Project structure, data flow, tech stack |
 | [docs/philosophy.md](docs/philosophy.md) | Design decisions and guiding principles |
 | [docs/driftsense.md](docs/driftsense.md) | DriftSense design system discovery |
+| [docs/tester-checklist.md](docs/tester-checklist.md) | Quick guide for early testers |
 
 ---
 
@@ -195,6 +196,14 @@ node dist/cli.js test-projects/healthy-app
 node dist/cli.js test-projects/mixed-app
 node dist/cli.js test-projects/drifted-app
 ```
+
+---
+
+## Early testing
+
+Interested in trying **ui-drift** on your own repository?
+
+See the quick tester guide: [docs/tester-checklist.md](docs/tester-checklist.md)
 
 ---
 
